@@ -3,18 +3,20 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-const isMissingCredentials = !supabaseUrl || !supabaseAnonKey
+export const isMissingCredentials = !supabaseUrl || !supabaseAnonKey
 
 if (isMissingCredentials) {
-  console.warn(
-    'Missing Supabase environment variables. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file.'
+  console.error(
+    '⚠️ CRITICAL: Missing Supabase environment variables!\n' +
+    'VITE_SUPABASE_URL: ' + (supabaseUrl ? '✅ Set' : '❌ Missing') + '\n' +
+    'VITE_SUPABASE_ANON_KEY: ' + (supabaseAnonKey ? '✅ Set' : '❌ Missing') + '\n' +
+    'If deployed on Vercel, add these in: Vercel Dashboard → Project → Settings → Environment Variables'
   )
 }
 
 // Use placeholder URL to prevent crash when credentials are missing
+// (auth calls will fail gracefully with a clear error message)
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
   supabaseAnonKey || 'placeholder-key'
 )
-
-export { isMissingCredentials }

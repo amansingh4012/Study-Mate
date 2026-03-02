@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
-import { supabase } from '../lib/supabase'
+import { supabase, isMissingCredentials } from '../lib/supabase'
 
 const STUDY_INTERESTS = [
   'Computer Science',
@@ -88,6 +88,14 @@ export default function Signup() {
     setSubmitError('')
     
     if (!validateForm()) return
+
+    if (isMissingCredentials) {
+      setSubmitError(
+        'App configuration error: Supabase credentials are not set. ' +
+        'If this is a deployed site, the environment variables (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY) need to be added in the hosting dashboard.'
+      )
+      return
+    }
     
     setLoading(true)
     
