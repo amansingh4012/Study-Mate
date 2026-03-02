@@ -15,6 +15,9 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [submitError, setSubmitError] = useState('')
+  const [isEmailNotConfirmed, setIsEmailNotConfirmed] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendSuccess, setResendSuccess] = useState(false)
   
   // Forgot password modal state
   const [showForgotModal, setShowForgotModal] = useState(false)
@@ -58,6 +61,8 @@ export default function Login() {
     if (!validateForm()) return
     
     setLoading(true)
+    setIsEmailNotConfirmed(false)
+    setResendSuccess(false)
     
     try {
       const { error } = await supabase.auth.signInWithPassword({
@@ -69,10 +74,35 @@ export default function Login() {
       
       navigate('/home')
     } catch (error) {
-      // Security best practice: don't reveal specifics
-      setSubmitError('Invalid email or password')
+      const msg = error.message || ''
+      if (msg.toLowerCase().includes('email not confirmed')) {
+        setIsEmailNotConfirmed(true)
+        setSubmitError(
+          'Your email is not confirmed yet. Please check your inbox (and spam folder) for the confirmation link.'
+        )
+      } else if (msg.toLowerCase().includes('invalid login credentials')) {
+        setSubmitError('Invalid email or password')
+      } else {
+        setSubmitError(msg || 'Something went wrong. Please try again.')
+      }
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleResendConfirmation = async () => {
+    setResendLoading(true)
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: formData.email,
+      })
+      if (error) throw error
+      setResendSuccess(true)
+    } catch (error) {
+      setSubmitError('Failed to resend confirmation email. Please try again.')
+    } finally {
+      setResendLoading(false)
     }
   }
 
@@ -240,6 +270,21 @@ export default function Login() {
               <div className="bg-[#E57373]/10 border border-[#E57373]/30 px-4 py-3"
                    style={{ borderRadius: '4px' }}>
                 <p className="text-[#E57373] text-sm">{submitError}</p>
+                {isEmailNotConfirmed && !resendSuccess && (
+                  <button
+                    type="button"
+                    onClick={handleResendConfirmation}
+                    disabled={resendLoading}
+                    className="mt-2 text-accent text-sm font-semibold hover:underline disabled:opacity-50"
+                  >
+                    {resendLoading ? 'Sending...' : 'Resend confirmation email'}
+                  </button>
+                )}
+                {resendSuccess && (
+                  <p className="text-green-400 text-sm mt-2">
+                    Confirmation email sent! Please check your inbox.
+                  </p>
+                )}
               </div>
             )}
 
