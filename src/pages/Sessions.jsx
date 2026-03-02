@@ -59,6 +59,86 @@ export default function Sessions() {
     if (!user) return
     fetchSessions()
     fetchReminders()
+
+    // ─── Realtime subscription for session changes ───
+    // Listen to INSERT, UPDATE, DELETE on the sessions table so users
+    // never need to refresh to see new / changed / ended sessions.
+    const channel = supabase
+      .channel('sessions-realtime')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'sessions' },
+        async (payload) => {
+          // Fetch the full session with host profile joined
+          const { data } = await supabase
+            .from('sessions')
+            .select(`*, host:profiles!sessions_host_id_fkey(id, full_name, avatar_url)`)
+            .eq('id', payload.new.id)
+            .single()
+          if (!data) return
+
+          if (data.status === 'live') {
+            setLiveSessions(prev => {
+              if (prev.some(s => s.id === data.id)) return prev
+              return [data, ...prev]
+            })
+          } else if (data.status === 'upcoming') {
+            setUpcomingSessions(prev => {
+              if (prev.some(s => s.id === data.id)) return prev
+              return [...prev, data].sort(
+                (a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at)
+              )
+            })
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'sessions' },
+        async (payload) => {
+          const updated = payload.new
+
+          // Fetch full record with host for display
+          const { data } = await supabase
+            .from('sessions')
+            .select(`*, host:profiles!sessions_host_id_fkey(id, full_name, avatar_url)`)
+            .eq('id', updated.id)
+            .single()
+          if (!data) return
+
+          // Remove from all lists first, then re-insert in the correct one
+          setLiveSessions(prev => prev.filter(s => s.id !== data.id))
+          setUpcomingSessions(prev => prev.filter(s => s.id !== data.id))
+          setRecentSessions(prev => prev.filter(s => s.id !== data.id))
+
+          if (data.status === 'live') {
+            setLiveSessions(prev => [data, ...prev])
+          } else if (data.status === 'upcoming') {
+            setUpcomingSessions(prev =>
+              [...prev, data].sort(
+                (a, b) => new Date(a.scheduled_at) - new Date(b.scheduled_at)
+              )
+            )
+          } else if (data.status === 'ended') {
+            setRecentSessions(prev => [data, ...prev].slice(0, 4))
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'sessions' },
+        (payload) => {
+          const deletedId = payload.old.id
+          setLiveSessions(prev => prev.filter(s => s.id !== deletedId))
+          setUpcomingSessions(prev => prev.filter(s => s.id !== deletedId))
+          setRecentSessions(prev => prev.filter(s => s.id !== deletedId))
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [user])
 
   const fetchSessions = async () => {

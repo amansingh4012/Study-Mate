@@ -184,7 +184,10 @@ export default function SessionRoom() {
     }
   }, [sessionId])
 
-  // Real-time session status subscription — auto-kick viewers when host ends session
+  // Real-time session status subscription — keeps session state in sync and
+  // auto-kicks viewers when the host ends the session. Also handles the case
+  // where a user lands on an "upcoming" session that then goes "live" — the
+  // UI updates instantly without a page refresh.
   useEffect(() => {
     if (!sessionId) return
 
@@ -198,13 +201,23 @@ export default function SessionRoom() {
           table: 'sessions',
           filter: `id=eq.${sessionId}`
         },
-        (payload) => {
-          if (payload.new.status === 'ended') {
+        async (payload) => {
+          const updated = payload.new
+
+          if (updated.status === 'ended') {
             // Leave Agora silently
             agoraLeave().catch(() => {})
             // Navigate everyone back
             navigate('/sessions')
+            return
           }
+
+          // For any other status change (upcoming → live, viewer_count, etc.)
+          // merge the new fields into the existing session so UI reacts instantly.
+          setSession(prev => {
+            if (!prev) return prev
+            return { ...prev, ...updated, host: prev.host }
+          })
         }
       )
       .subscribe()
