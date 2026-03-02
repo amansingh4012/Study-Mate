@@ -1,0 +1,93 @@
+/* StudyMate - Base Styles */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles following StudyMate design rules */
+@layer base {
+  html {
+    font-family: 'DM Sans', sans-serif;
+    background-color: #0A0F1E;
+    color: #F0EDE6;
+  }
+
+  body {
+    @apply bg-navy text-cream min-h-screen antialiased;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+  }
+
+  /* Ensure all text uses DM Sans by default */
+  p, span, div, input, textarea, select, button, a {
+    font-family: 'DM Sans', sans-serif;
+  }
+}
+
+/* Custom component classes following design rules */
+@layer components {
+  /* Card with proper background color */
+  .card {
+    background-color: #131929;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    padding: 1.25rem;
+  }
+
+  /* Primary button - sharp corners, bold font */
+  .btn-primary {
+    @apply bg-accent text-navy font-heading font-bold px-6 py-3 
+           transition-all duration-200 ease-in-out
+           hover:bg-accent/90 active:scale-[0.98];
+    border-radius: 6px;
+  }
+
+  /* Secondary button */
+  .btn-secondary {
+    @apply bg-transparent border border-cream/20 text-cream font-heading font-medium px-6 py-3
+           transition-all duration-200 ease-in-out
+           hover:border-cream/40 hover:bg-cream/5;
+    border-radius: 6px;
+  }
+
+  /* Container with generous padding */
+  .container-main {
+    @apply w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Section spacing */
+  .section {
+    @apply py-12 sm:py-16 lg:py-20;
+  }
+}
+
+/* Subtle animations */
+@layer utilities {
+  .fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Hide scrollbar for horizontal scroll containers */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
