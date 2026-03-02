@@ -118,7 +118,15 @@ export default function Signup() {
       // and the Onboarding page will verify the session before saving
       navigate('/onboarding')
     } catch (error) {
-      setSubmitError(error.message || 'An error occurred during signup')
+      const msg = error.message || ''
+      if (msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('networkerror')) {
+        setSubmitError(
+          'Network error: Cannot reach the authentication server. ' +
+          'This usually means the app is misconfigured. Please contact the developer.'
+        )
+      } else {
+        setSubmitError(msg || 'An error occurred during signup')
+      }
     } finally {
       setLoading(false)
     }

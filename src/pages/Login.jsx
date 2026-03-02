@@ -83,7 +83,13 @@ export default function Login() {
       navigate('/home')
     } catch (error) {
       const msg = error.message || ''
-      if (msg.toLowerCase().includes('email not confirmed')) {
+      if (msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('networkerror')) {
+        setSubmitError(
+          'Network error: Cannot reach the authentication server. ' +
+          'This usually means the app is misconfigured. Please contact the developer.'
+        )
+        console.error('Supabase fetch failed. Current URL target:', import.meta.env.VITE_SUPABASE_URL || 'NOT SET (using placeholder)')
+      } else if (msg.toLowerCase().includes('email not confirmed')) {
         setIsEmailNotConfirmed(true)
         setSubmitError(
           'Your email is not confirmed yet. Please check your inbox (and spam folder) for the confirmation link.'
