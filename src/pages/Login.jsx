@@ -214,16 +214,6 @@ export default function Login() {
             Login to your account
           </h2>
 
-          {/* DEBUG: Remove this after fixing - shows env var status */}
-          {import.meta.env.DEV || true ? (
-            <div className="bg-slate/30 border border-slate/50 px-3 py-2 mb-4 text-xs font-mono" style={{ borderRadius: '4px' }}>
-              <p className="text-muted">
-                ENV Debug: URL={import.meta.env.VITE_SUPABASE_URL ? '✅ SET (' + import.meta.env.VITE_SUPABASE_URL.substring(0, 30) + '...)' : '❌ MISSING'} | 
-                KEY={import.meta.env.VITE_SUPABASE_ANON_KEY ? '✅ SET' : '❌ MISSING'}
-              </p>
-            </div>
-          ) : null}
-
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Email */}
             <div>
