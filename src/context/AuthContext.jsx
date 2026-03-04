@@ -18,10 +18,21 @@ export function AuthProvider({ children }) {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+      (event, session) => {
         setSession(session)
         setUser(session?.user ?? null)
         setLoading(false)
+
+        // Log auth events for debugging
+        if (event === 'SIGNED_IN') {
+          console.log('Auth: User signed in')
+        } else if (event === 'SIGNED_OUT') {
+          console.log('Auth: User signed out')
+        } else if (event === 'TOKEN_REFRESHED') {
+          console.log('Auth: Token refreshed')
+        } else if (event === 'USER_UPDATED') {
+          console.log('Auth: User updated')
+        }
       }
     )
 

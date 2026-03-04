@@ -108,6 +108,7 @@ export default function Signup() {
             full_name: formData.fullName,
             interest: formData.interest,
           },
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       })
       

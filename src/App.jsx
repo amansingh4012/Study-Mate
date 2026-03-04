@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import Signup from './pages/Signup'
 import Login from './pages/Login'
 import Onboarding from './pages/Onboarding'
+import AuthCallback from './pages/AuthCallback'
 import Home from './pages/Home'
 import FindMate from './pages/FindMate'
 import Rooms from './pages/Rooms'
@@ -29,6 +30,8 @@ function App() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/login" element={<Login />} />
       <Route path="/onboarding" element={<Onboarding />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route path="/auth/confirm" element={<AuthCallback />} />
 
       {/* Protected routes with MainLayout */}
       <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>

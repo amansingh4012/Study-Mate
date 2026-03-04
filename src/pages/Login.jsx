@@ -83,19 +83,26 @@ export default function Login() {
       navigate('/home')
     } catch (error) {
       const msg = error.message || ''
-      if (msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('networkerror')) {
+      const msgLower = msg.toLowerCase()
+      if (msgLower.includes('failed to fetch') || msgLower.includes('networkerror') || msgLower.includes('fetch')) {
         setSubmitError(
           'Network error: Cannot reach the authentication server. ' +
           'This usually means the app is misconfigured. Please contact the developer.'
         )
         console.error('Supabase fetch failed. Current URL target:', import.meta.env.VITE_SUPABASE_URL || 'NOT SET (using placeholder)')
-      } else if (msg.toLowerCase().includes('email not confirmed')) {
+      } else if (msgLower.includes('email not confirmed') || msgLower.includes('email_not_confirmed')) {
         setIsEmailNotConfirmed(true)
         setSubmitError(
-          'Your email is not confirmed yet. Please check your inbox (and spam folder) for the confirmation link.'
+          'Your email is not confirmed yet. Please check your inbox (and spam folder) for the confirmation link, then try logging in again.'
         )
-      } else if (msg.toLowerCase().includes('invalid login credentials')) {
-        setSubmitError('Invalid email or password')
+      } else if (msgLower.includes('invalid login credentials') || msgLower.includes('invalid_credentials')) {
+        // Supabase sometimes returns "Invalid login credentials" for unconfirmed emails too
+        setIsEmailNotConfirmed(true)
+        setSubmitError(
+          'Login failed. This can happen if your email is not yet confirmed. ' +
+          'Please check your inbox (and spam folder) for a confirmation email from StudyMate, then try again. ' +
+          'If you\'ve already confirmed, double-check your email and password.'
+        )
       } else {
         setSubmitError(msg || 'Something went wrong. Please try again.')
       }
@@ -110,6 +117,9 @@ export default function Login() {
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email: formData.email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
       })
       if (error) throw error
       setResendSuccess(true)
@@ -138,7 +148,7 @@ export default function Login() {
     
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${window.location.origin}/auth/callback`,
       })
       
       if (error) throw error
