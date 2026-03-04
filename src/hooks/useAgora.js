@@ -27,6 +27,7 @@ export default function useAgora() {
 
   const localAudioTrack = useRef(null)
   const localVideoTrack = useRef(null)
+  const facingMode = useRef('user')
 
   // Handle remote user events
   useEffect(() => {
@@ -231,6 +232,34 @@ export default function useAgora() {
   }, [])
 
   /**
+   * Flip camera between front ('user') and back ('environment') — mobile only
+   */
+  const flipCamera = useCallback(async () => {
+    if (!localVideoTrack.current) return
+
+    const newMode = facingMode.current === 'user' ? 'environment' : 'user'
+
+    try {
+      // Unpublish the current video track
+      await client.unpublish(localVideoTrack.current)
+      localVideoTrack.current.stop()
+      localVideoTrack.current.close()
+
+      // Create a new track with the opposite facingMode
+      localVideoTrack.current = await AgoraRTC.createCameraVideoTrack({
+        encoderConfig: '480p_1',
+        facingMode: newMode,
+      })
+
+      await client.publish(localVideoTrack.current)
+      facingMode.current = newMode
+      setIsCamOn(true)
+    } catch (error) {
+      console.error('Error flipping camera:', error)
+    }
+  }, [])
+
+  /**
    * Toggle local microphone on/off
    */
   const toggleMic = useCallback(async () => {
@@ -274,6 +303,7 @@ export default function useAgora() {
     stopPublishing,
     isPublishing,
     toggleCamera,
+    flipCamera,
     toggleMic,
     isMicOn,
     isCamOn,

@@ -47,6 +47,7 @@ export default function SessionRoom() {
     stopPublishing,
     isPublishing,
     toggleCamera,
+    flipCamera,
     isCamOn,
     localVideoTrack,
     remoteUsers,
@@ -516,6 +517,7 @@ export default function SessionRoom() {
                   <VideoControls
                     isCamOn={isCamOn}
                     onToggleCam={toggleCamera}
+                    onFlipCam={flipCamera}
                     onLeave={async () => {
                       await agoraLeave()
                     }}
@@ -536,6 +538,7 @@ export default function SessionRoom() {
                   <VideoControls
                     isCamOn={isCamOn}
                     onToggleCam={toggleCamera}
+                    onFlipCam={flipCamera}
                     onLeave={leaveVideoAsViewer}
                   />
                 ) : session.allow_guests ? (
