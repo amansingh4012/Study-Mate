@@ -31,7 +31,7 @@ export default function SessionRoom() {
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
   const [sending, setSending] = useState(false)
-  const [showMobileChat, setShowMobileChat] = useState(false)
+  const [showChat, setShowChat] = useState(false)
   
   const messagesEndRef = useRef(null)
   const presenceChannelRef = useRef(null)
@@ -410,10 +410,10 @@ export default function SessionRoom() {
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Mobile chat toggle */}
+          {/* Chat toggle */}
           <button
-            onClick={() => setShowMobileChat(!showMobileChat)}
-            className="lg:hidden flex items-center gap-1.5 px-3 py-1.5 text-muted 
+            onClick={() => setShowChat(!showChat)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-muted 
                      hover:text-cream transition-colors"
           >
             <MessageCircle size={16} />
@@ -572,40 +572,17 @@ export default function SessionRoom() {
           </div>
         </main>
 
-        {/* Mobile Chat Overlay */}
-        {showMobileChat && (
-          <div 
-            className="lg:hidden fixed inset-0 z-40 bg-black/50"
-            onClick={() => setShowMobileChat(false)}
-          />
-        )}
-
-        {/* Chat panel - Desktop sidebar / Mobile drawer */}
+        {/* Chat panel */}
+        {showChat && (
         <aside 
-          className={`w-[320px] flex-shrink-0 border-l border-slate/10 flex-col
-                     lg:flex
-                     ${showMobileChat 
-                       ? 'fixed inset-x-0 bottom-0 w-full max-h-[70vh] z-50 border-l-0 flex' 
-                       : 'hidden'}`}
-          style={{ 
-            backgroundColor: '#131929',
-            ...(showMobileChat ? {
-              borderTop: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: '16px 16px 0 0'
-            } : {})
-          }}
+          className="w-[320px] flex-shrink-0 border-l border-slate/10 flex flex-col"
+          style={{ backgroundColor: '#131929' }}
         >
           {/* Chat header */}
           <div 
             className="p-4 flex flex-col flex-shrink-0"
             style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}
           >
-            {/* Mobile drag handle */}
-            {showMobileChat && (
-              <div className="lg:hidden flex justify-center mb-3">
-                <div className="w-10 h-1 bg-slate/50 rounded-full" />
-              </div>
-            )}
             <div className="flex items-center justify-between">
               <h3 className="font-heading text-sm text-cream font-semibold">
                 Live Chat
@@ -617,14 +594,12 @@ export default function SessionRoom() {
                 >
                   {showViewerList ? 'Show Chat' : `${viewers.length} Viewers`}
                 </button>
-                {showMobileChat && (
-                  <button
-                    onClick={() => setShowMobileChat(false)}
-                    className="lg:hidden p-1 text-muted hover:text-cream"
+                <button
+                    onClick={() => setShowChat(false)}
+                    className="p-1 text-muted hover:text-cream"
                   >
                     <X size={16} />
                   </button>
-                )}
               </div>
             </div>
           </div>
@@ -751,6 +726,7 @@ export default function SessionRoom() {
             </>
           )}
         </aside>
+        )}
       </div>
     </div>
   )
