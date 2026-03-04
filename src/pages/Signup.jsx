@@ -120,6 +120,14 @@ export default function Signup() {
       newErrors.password = 'Password is required'
     } else if (formData.password.length < 6) {
       newErrors.password = 'Password must be at least 6 characters'
+    } else if (!/[a-z]/.test(formData.password)) {
+      newErrors.password = 'Must include at least one lowercase letter'
+    } else if (!/[A-Z]/.test(formData.password)) {
+      newErrors.password = 'Must include at least one uppercase letter'
+    } else if (!/[0-9]/.test(formData.password)) {
+      newErrors.password = 'Must include at least one number'
+    } else if (!/[^a-zA-Z0-9]/.test(formData.password)) {
+      newErrors.password = 'Must include at least one special character'
     }
     
     if (!formData.confirmPassword) {
@@ -357,6 +365,21 @@ export default function Signup() {
               </div>
               {errors.password && (
                 <p className="text-[#E57373] text-sm mt-1.5">{errors.password}</p>
+              )}
+              {formData.password && !errors.password && (
+                <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
+                  {[
+                    { test: formData.password.length >= 6, label: '6+ chars' },
+                    { test: /[a-z]/.test(formData.password), label: 'Lowercase' },
+                    { test: /[A-Z]/.test(formData.password), label: 'Uppercase' },
+                    { test: /[0-9]/.test(formData.password), label: 'Number' },
+                    { test: /[^a-zA-Z0-9]/.test(formData.password), label: 'Special' },
+                  ].map(({ test, label }) => (
+                    <span key={label} className={`text-xs ${test ? 'text-accent' : 'text-muted/50'}`}>
+                      {test ? '✓' : '○'} {label}
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
 
