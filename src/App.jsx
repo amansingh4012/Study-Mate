@@ -12,6 +12,7 @@ import Sessions from './pages/Sessions'
 import SessionRoom from './pages/SessionRoom'
 import Messages from './pages/Messages'
 import Profile from './pages/Profile'
+import Search from './pages/Search'
 import MainLayout from './components/layout/MainLayout'
 import { ProtectedRoute } from './components/layout/ProtectedRoute'
 import ErrorBoundary from './components/layout/ErrorBoundary'
@@ -46,6 +47,7 @@ function App() {
         <Route path="/messages" element={withErrorBoundary(Messages)} />
         <Route path="/profile" element={withErrorBoundary(Profile)} />
         <Route path="/profile/:userId" element={withErrorBoundary(Profile)} />
+        <Route path="/search" element={withErrorBoundary(Search)} />
       </Route>
     </Routes>
   )

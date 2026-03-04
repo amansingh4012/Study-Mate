@@ -4,6 +4,7 @@ import { House, Users, Grid2X2, Radio, MessageSquare, User, LogOut, Menu } from 
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import NotificationBell from './NotificationBell'
+import SearchBar from './SearchBar'
 
 const NAV_ITEMS = [
   { path: '/home', label: 'Home', icon: House },
@@ -225,6 +226,7 @@ export default function MainLayout() {
           <span className="w-1.5 h-1.5 bg-accent rounded-full ml-0.5 mb-2"></span>
         </div>
         <div className="flex items-center gap-2">
+          <SearchBar />
           <NotificationBell />
           <NavLink to="/profile" className="p-2">
             <div className="w-8 h-8 rounded-full bg-slate flex items-center justify-center overflow-hidden">
@@ -277,6 +279,13 @@ export default function MainLayout() {
         className={`pt-14 pb-20 lg:pt-0 lg:pb-0 min-h-screen transition-[margin] duration-200
                    ${sidebarOpen ? 'lg:ml-60' : 'lg:ml-0'}`}
       >
+        {/* Desktop Search Bar */}
+        {!isSessionRoom && (
+          <div className="hidden lg:flex items-center justify-center py-4 px-8"
+               style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <SearchBar />
+          </div>
+        )}
         <div className={isSessionRoom ? 'px-0 py-0' : 'max-w-[1200px] mx-auto px-4 py-6 lg:px-8 lg:py-8'}>
           <Outlet />
         </div>
