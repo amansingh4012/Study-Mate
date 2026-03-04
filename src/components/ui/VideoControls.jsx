@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react'
 import { Video, VideoOff, PhoneOff, RefreshCw } from 'lucide-react'
 
 /**
@@ -7,7 +6,7 @@ import { Video, VideoOff, PhoneOff, RefreshCw } from 'lucide-react'
  * Props:
  *  isCamOn      - current camera state
  *  onToggleCam  - () => void
- *  onFlipCam    - () => void  (only shown on mobile when camera is on)
+ *  onFlipCam    - () => void  (shown when camera is on)
  *  onLeave      - () => void
  */
 export default function VideoControls({
@@ -16,19 +15,6 @@ export default function VideoControls({
   onFlipCam,
   onLeave,
 }) {
-  const [isMobile, setIsMobile] = useState(false)
-
-  useEffect(() => {
-    const check = () => {
-      const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0
-      const smallScreen = window.innerWidth <= 768
-      setIsMobile(hasTouch || smallScreen)
-    }
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
-  }, [])
-
   const btn =
     'flex items-center justify-center w-12 h-12 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0B1120]'
 
@@ -51,11 +37,11 @@ export default function VideoControls({
         )}
       </button>
 
-      {/* Flip camera — mobile only, visible when camera is on */}
-      {isMobile && isCamOn && onFlipCam && (
+      {/* Flip camera — visible when camera is on; only useful on mobile devices with multiple cameras */}
+      {isCamOn && onFlipCam && (
         <button
           onClick={onFlipCam}
-          className={`${btn} bg-white/10 hover:bg-white/20 text-white focus:ring-white/40`}
+          className={`${btn} bg-white/10 hover:bg-white/20 text-white focus:ring-white/40 sm:hidden`}
           title="Flip camera"
         >
           <RefreshCw className="w-5 h-5" />
