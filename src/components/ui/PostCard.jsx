@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { Heart, MessageCircle, Share2, Bookmark } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import CommentSection from './CommentSection'
 
 export default function PostCard({ post, onLikeToggle }) {
   const { user } = useAuth()
@@ -11,6 +12,28 @@ export default function PostCard({ post, onLikeToggle }) {
   const [likeCount, setLikeCount] = useState(post.like_count || 0)
   const [isBookmarked, setIsBookmarked] = useState(post.is_bookmarked || false)
   const [likeLoading, setLikeLoading] = useState(false)
+  const [commentsOpen, setCommentsOpen] = useState(false)
+  const [commentCount, setCommentCount] = useState(post.comment_count || 0)
+  const commentPanelRef = useRef(null)
+
+  // Realtime subscription for comment count
+  useEffect(() => {
+    const channel = supabase
+      .channel(`comments-count-${post.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'comments', filter: `post_id=eq.${post.id}` },
+        () => setCommentCount(prev => prev + 1)
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'comments', filter: `post_id=eq.${post.id}` },
+        () => setCommentCount(prev => Math.max(0, prev - 1))
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [post.id])
 
   const content = post.content || ''
   const isLongContent = content.length > 280
@@ -213,15 +236,17 @@ export default function PostCard({ post, onLikeToggle }) {
           </button>
 
           {/* Comment */}
-          <Link 
-            to={`/post/${post.id}`}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-muted hover:text-cream 
-                     transition-colors duration-200"
+          <button
+            onClick={() => setCommentsOpen(prev => !prev)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors duration-200
+                      ${commentsOpen ? 'text-accent' : 'text-muted hover:text-cream'}`}
             style={{ borderRadius: '4px' }}
           >
             <MessageCircle size={18} />
-            <span className="text-xs">{post.comment_count > 0 ? post.comment_count : ''}</span>
-          </Link>
+            <span className="text-xs">
+              {commentCount > 0 ? `Reply (${commentCount})` : 'Reply'}
+            </span>
+          </button>
 
           {/* Share */}
           <button 
@@ -245,6 +270,20 @@ export default function PostCard({ post, onLikeToggle }) {
         >
           <Bookmark size={18} fill={isBookmarked ? 'currentColor' : 'none'} />
         </button>
+      </div>
+
+      {/* Inline Comments — slide animation */}
+      <div
+        ref={commentPanelRef}
+        className="overflow-hidden transition-all duration-300 ease-in-out"
+        style={{
+          maxHeight: commentsOpen ? (commentPanelRef.current?.scrollHeight || 1000) + 'px' : '0px',
+          opacity: commentsOpen ? 1 : 0,
+        }}
+      >
+        {commentsOpen && (
+          <CommentSection postId={post.id} postAuthorId={post.author_id || post.author?.id} />
+        )}
       </div>
     </article>
   )
