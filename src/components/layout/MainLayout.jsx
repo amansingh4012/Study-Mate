@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { House, Users, Grid2X2, Radio, MessageSquare, User, LogOut } from 'lucide-react'
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
+import { House, Users, Grid2X2, Radio, MessageSquare, User, LogOut, Menu } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import NotificationBell from './NotificationBell'
@@ -20,7 +20,16 @@ const MOBILE_NAV_ITEMS = NAV_ITEMS.slice(0, 5)
 export default function MainLayout() {
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [unreadCount, setUnreadCount] = useState(0)
+
+  // Auto-hide sidebar on session room pages so video grid gets max space
+  const isSessionRoom = /^\/sessions\/[^/]+$/.test(location.pathname)
+  const [sidebarOpen, setSidebarOpen] = useState(!isSessionRoom)
+
+  useEffect(() => {
+    setSidebarOpen(!isSessionRoom)
+  }, [isSessionRoom])
 
   // Fetch and subscribe to unread messages count
   useEffect(() => {
@@ -83,9 +92,30 @@ export default function MainLayout() {
 
   return (
     <div className="min-h-screen bg-navy">
+      {/* Sidebar toggle button — visible when sidebar is hidden (session room) */}
+      {!sidebarOpen && (
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="hidden lg:flex fixed left-4 top-4 z-50 p-2 text-muted hover:text-cream transition-colors"
+          style={{ backgroundColor: '#0D1323', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.06)' }}
+          title="Show sidebar"
+        >
+          <Menu size={20} />
+        </button>
+      )}
+
+      {/* Sidebar overlay for session room (click outside to close) */}
+      {sidebarOpen && isSessionRoom && (
+        <div
+          className="hidden lg:block fixed inset-0 z-30 bg-black/40"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Desktop Sidebar */}
       <aside 
-        className="hidden lg:flex lg:flex-col fixed left-0 top-0 h-full w-60 z-40 overflow-visible"
+        className={`lg:flex lg:flex-col fixed left-0 top-0 h-full w-60 z-40 overflow-visible transition-transform duration-200
+                   ${sidebarOpen ? 'hidden lg:flex translate-x-0' : 'hidden -translate-x-full'}`}
         style={{ 
           backgroundColor: '#0D1323',
           borderRight: '1px solid rgba(255,255,255,0.06)'
@@ -244,9 +274,10 @@ export default function MainLayout() {
 
       {/* Main Content */}
       <main 
-        className="lg:ml-60 pt-14 pb-20 lg:pt-0 lg:pb-0 min-h-screen"
+        className={`pt-14 pb-20 lg:pt-0 lg:pb-0 min-h-screen transition-[margin] duration-200
+                   ${sidebarOpen ? 'lg:ml-60' : 'lg:ml-0'}`}
       >
-        <div className="max-w-[1200px] mx-auto px-4 py-6 lg:px-8 lg:py-8">
+        <div className={isSessionRoom ? 'px-0 py-0' : 'max-w-[1200px] mx-auto px-4 py-6 lg:px-8 lg:py-8'}>
           <Outlet />
         </div>
       </main>
