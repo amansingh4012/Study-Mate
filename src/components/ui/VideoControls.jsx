@@ -1,4 +1,5 @@
-import { Video, VideoOff, PhoneOff, SwitchCamera } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Video, VideoOff, PhoneOff, RefreshCw } from 'lucide-react'
 
 /**
  * VideoControls — floating controls bar for video calls
@@ -15,7 +16,18 @@ export default function VideoControls({
   onFlipCam,
   onLeave,
 }) {
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const check = () => {
+      const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0
+      const smallScreen = window.innerWidth <= 768
+      setIsMobile(hasTouch || smallScreen)
+    }
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   const btn =
     'flex items-center justify-center w-12 h-12 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#0B1120]'
@@ -46,7 +58,7 @@ export default function VideoControls({
           className={`${btn} bg-white/10 hover:bg-white/20 text-white focus:ring-white/40`}
           title="Flip camera"
         >
-          <SwitchCamera className="w-5 h-5" />
+          <RefreshCw className="w-5 h-5" />
         </button>
       )}
 
