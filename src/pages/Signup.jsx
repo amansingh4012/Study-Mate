@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, Loader2, Check, X as XIcon } from 'lucide-react'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { supabase, isMissingCredentials } from '../lib/supabase'
 
 const STUDY_INTERESTS = [
@@ -21,7 +21,6 @@ export default function Signup() {
   
   const [formData, setFormData] = useState({
     fullName: '',
-    username: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -34,63 +33,16 @@ export default function Signup() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [submitError, setSubmitError] = useState('')
-  const [checkingUsername, setCheckingUsername] = useState(false)
-  const [usernameAvailable, setUsernameAvailable] = useState(null)
-
-  // Username validation regex: letters, numbers, max one dot, max one underscore
-  const isValidUsername = (val) => {
-    if (val.length < 3 || val.length > 30) return false
-    // Must start and end with letter or number
-    if (!/^[a-zA-Z0-9]/.test(val) || !/[a-zA-Z0-9]$/.test(val)) return false
-    // Only letters, numbers, at most one dot, at most one underscore
-    const dotCount = (val.match(/\./g) || []).length
-    const underscoreCount = (val.match(/_/g) || []).length
-    if (dotCount > 1 || underscoreCount > 1) return false
-    // No other special characters
-    if (!/^[a-zA-Z0-9._]+$/.test(val)) return false
-    return true
-  }
-
-  const checkUsernameAvailability = async (username) => {
-    if (!isValidUsername(username)) {
-      setUsernameAvailable(null)
-      return
-    }
-    setCheckingUsername(true)
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('username', username.toLowerCase())
-        .maybeSingle()
-      if (!error) {
-        setUsernameAvailable(!data)
-      }
-    } catch {
-      setUsernameAvailable(null)
-    } finally {
-      setCheckingUsername(false)
-    }
-  }
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : name === 'username' ? value.toLowerCase() : value,
+      [name]: type === 'checkbox' ? checked : value,
     }))
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }))
-    }
-    // Check username availability on change
-    if (name === 'username') {
-      setUsernameAvailable(null)
-      const trimmed = value.trim().toLowerCase()
-      if (trimmed.length >= 3 && isValidUsername(trimmed)) {
-        clearTimeout(window._usernameTimer)
-        window._usernameTimer = setTimeout(() => checkUsernameAvailability(trimmed), 400)
-      }
     }
   }
 
@@ -99,15 +51,6 @@ export default function Signup() {
     
     if (!formData.fullName.trim()) {
       newErrors.fullName = 'Full name is required'
-    }
-
-    const trimmedUsername = formData.username.trim().toLowerCase()
-    if (!trimmedUsername) {
-      newErrors.username = 'Username is required'
-    } else if (!isValidUsername(trimmedUsername)) {
-      newErrors.username = 'Username must be 3-30 characters: letters, numbers, max one dot & one underscore'
-    } else if (usernameAvailable === false) {
-      newErrors.username = 'This username is already taken'
     }
     
     if (!formData.email.trim()) {
@@ -171,7 +114,6 @@ export default function Signup() {
         options: {
           data: {
             full_name: formData.fullName,
-            username: formData.username.trim().toLowerCase(),
             interest: formData.interest,
           },
           emailRedirectTo: `${window.location.origin}/auth/callback`,
@@ -275,44 +217,6 @@ export default function Signup() {
               />
               {errors.fullName && (
                 <p className="text-[#E57373] text-sm mt-1.5">{errors.fullName}</p>
-              )}
-            </div>
-
-            {/* Username */}
-            <div>
-              <label htmlFor="username" className="block text-cream text-sm font-body mb-2">
-                Username
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  id="username"
-                  name="username"
-                  value={formData.username}
-                  onChange={handleChange}
-                  className="w-full bg-[#161B2E] text-cream px-4 py-3 pr-10 border border-slate/50 
-                           focus:border-accent focus:outline-none transition-colors duration-200"
-                  style={{ borderRadius: '4px' }}
-                  placeholder="e.g. john_doe"
-                  maxLength={30}
-                />
-                {formData.username.trim().length >= 3 && (
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2">
-                    {checkingUsername ? (
-                      <Loader2 size={16} className="text-muted animate-spin" />
-                    ) : usernameAvailable === true ? (
-                      <Check size={16} className="text-accent" />
-                    ) : usernameAvailable === false ? (
-                      <XIcon size={16} className="text-[#E57373]" />
-                    ) : null}
-                  </span>
-                )}
-              </div>
-              <p className="text-muted/60 text-xs mt-1">
-                Letters, numbers, max one dot (.) and one underscore (_)
-              </p>
-              {errors.username && (
-                <p className="text-[#E57373] text-sm mt-1">{errors.username}</p>
               )}
             </div>
 
