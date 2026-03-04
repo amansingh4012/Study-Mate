@@ -100,7 +100,7 @@ export default function Onboarding() {
   }
 
   const handleUsernameChange = (e) => {
-    const val = e.target.value
+    const val = e.target.value.toLowerCase()
     setUsername(val)
     setUsernameAvailable(null)
     const trimmed = val.trim().toLowerCase()

@@ -77,7 +77,7 @@ export default function Signup() {
     const { name, value, type, checked } = e.target
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: type === 'checkbox' ? checked : name === 'username' ? value.toLowerCase() : value,
     }))
     // Clear error when user starts typing
     if (errors[name]) {

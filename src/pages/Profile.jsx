@@ -399,10 +399,11 @@ export default function Profile() {
   }
 
   const handleUsernameChange = (val) => {
-    setEditForm(prev => ({ ...prev, username: val }))
+    const lowered = val.toLowerCase()
+    setEditForm(prev => ({ ...prev, username: lowered }))
     setUsernameError('')
     setUsernameAvailable(null)
-    const trimmed = val.trim().toLowerCase()
+    const trimmed = lowered.trim()
     if (trimmed.length >= 3 && isValidUsername(trimmed)) {
       clearTimeout(window._profileUsernameTimer)
       window._profileUsernameTimer = setTimeout(() => checkUsernameAvailability(trimmed), 400)
