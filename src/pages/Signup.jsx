@@ -117,7 +117,7 @@ export default function Signup() {
       // If email confirmation is off, session is immediately available
       // If on, data.session will be null — still navigate to onboarding
       // and the Onboarding page will verify the session before saving
-      navigate('/onboarding')
+      navigate('/onboarding', { state: { email: formData.email } })
     } catch (error) {
       const msg = error.message || ''
       if (msg.toLowerCase().includes('failed to fetch') || msg.toLowerCase().includes('networkerror')) {

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { Camera, Loader2, Check } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
@@ -34,8 +34,10 @@ const AVAILABILITY_OPTIONS = [
 
 export default function Onboarding() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuth()
   const fileInputRef = useRef(null)
+  const signupEmail = location.state?.email || user?.email || ''
   
   const [currentStep, setCurrentStep] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -264,11 +266,11 @@ export default function Onboarding() {
         console.warn('No session available — data cached in localStorage, will sync on next login')
       }
       
-      navigate('/home')
+      navigate('/verify-email', { state: { email: signupEmail } })
     } catch (error) {
       console.error('Error saving profile:', error)
       setErrors({ submit: `Profile data cached locally. It will sync when you log in.` })
-      navigate('/home')
+      navigate('/verify-email', { state: { email: signupEmail } })
     } finally {
       setLoading(false)
     }

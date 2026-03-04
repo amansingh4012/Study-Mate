@@ -3,6 +3,7 @@ import Signup from './pages/Signup'
 import Login from './pages/Login'
 import Onboarding from './pages/Onboarding'
 import AuthCallback from './pages/AuthCallback'
+import VerifyEmail from './pages/VerifyEmail'
 import Home from './pages/Home'
 import FindMate from './pages/FindMate'
 import Rooms from './pages/Rooms'
@@ -30,6 +31,7 @@ function App() {
       <Route path="/signup" element={<Signup />} />
       <Route path="/login" element={<Login />} />
       <Route path="/onboarding" element={<Onboarding />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/auth/confirm" element={<AuthCallback />} />
 
