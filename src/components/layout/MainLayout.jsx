@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { House, Users, Grid2X2, Radio, MessageSquare, User, LogOut, Menu } from 'lucide-react'
+import { House, Compass, Users, Grid2X2, Radio, MessageSquare, User, LogOut, Menu } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import NotificationBell from './NotificationBell'
@@ -8,6 +8,7 @@ import SearchBar from './SearchBar'
 
 const NAV_ITEMS = [
   { path: '/home', label: 'Home', icon: House },
+  { path: '/discover', label: 'Discover', icon: Compass },
   { path: '/find-mate', label: 'Find a Mate', icon: Users },
   { path: '/rooms', label: 'Rooms', icon: Grid2X2 },
   { path: '/sessions', label: 'Sessions', icon: Radio },
