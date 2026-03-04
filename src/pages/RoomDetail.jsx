@@ -760,7 +760,7 @@ export default function RoomDetail() {
                   onPin={setPinnedUid}
                 />
               </div>
-              {isPublishing && (
+              {isPublishing && !showChat && (
                 <div className="flex justify-center py-3 flex-shrink-0 border-t border-slate/10">
                   <VideoControls
                     isCamOn={agCamOn}
