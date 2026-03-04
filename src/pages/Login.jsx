@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, Loader2, X } from 'lucide-react'
 import { supabase, isMissingCredentials } from '../lib/supabase'
+import { isProfileIncomplete } from '../lib/profileCheck'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -80,7 +81,13 @@ export default function Login() {
       
       if (error) throw error
       
-      navigate('/home')
+      // Check if profile is complete
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user && await isProfileIncomplete(user.id)) {
+        navigate('/onboarding')
+      } else {
+        navigate('/home')
+      }
     } catch (error) {
       const msg = error.message || ''
       const msgLower = msg.toLowerCase()

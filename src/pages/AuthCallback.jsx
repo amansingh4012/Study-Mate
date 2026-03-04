@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { isProfileIncomplete } from '../lib/profileCheck'
 import { Loader2 } from 'lucide-react'
 
 /**
@@ -29,8 +30,14 @@ export default function AuthCallback() {
             setTimeout(() => navigate('/login'), 3000)
             return
           }
-          // Session established — go to home
-          navigate('/home', { replace: true })
+          // Session established — check if profile is complete
+          const { data: { user } } = await supabase.auth.getUser()
+          if (user && await isProfileIncomplete(user.id)) {
+            // Profile incomplete — go to onboarding instead
+            navigate('/onboarding', { replace: true })
+          } else {
+            navigate('/home', { replace: true })
+          }
           return
         }
 
@@ -48,7 +55,14 @@ export default function AuthCallback() {
             setTimeout(() => navigate('/login'), 3000)
             return
           }
-          navigate('/home', { replace: true })
+          // Session confirmed — check if profile is complete
+          const { data: { user } } = await supabase.auth.getUser()
+          if (user && await isProfileIncomplete(user.id)) {
+            // Profile incomplete — go to onboarding instead
+            navigate('/onboarding', { replace: true })
+          } else {
+            navigate('/home', { replace: true })
+          }
           return
         }
 
@@ -61,7 +75,11 @@ export default function AuthCallback() {
           await new Promise(r => setTimeout(r, 1000))
           const { data: { session } } = await supabase.auth.getSession()
           if (session) {
-            navigate('/home', { replace: true })
+            if (await isProfileIncomplete(session.user.id)) {
+              navigate('/onboarding', { replace: true })
+            } else {
+              navigate('/home', { replace: true })
+            }
             return
           }
         }
