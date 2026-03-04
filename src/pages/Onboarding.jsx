@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Camera, Loader2, Check } from 'lucide-react'
+import { Camera, Loader2, Check, X as XIcon } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 
@@ -48,6 +48,9 @@ export default function Onboarding() {
   const [avatarPreview, setAvatarPreview] = useState('')
   const [avatarFile, setAvatarFile] = useState(null) // raw file for deferred upload
   const [displayName, setDisplayName] = useState(user?.user_metadata?.full_name || '')
+  const [username, setUsername] = useState(user?.user_metadata?.username || '')
+  const [checkingUsername, setCheckingUsername] = useState(false)
+  const [usernameAvailable, setUsernameAvailable] = useState(null)
   const [bio, setBio] = useState('')
   const [university, setUniversity] = useState('')
   
@@ -62,10 +65,58 @@ export default function Onboarding() {
   // Errors
   const [errors, setErrors] = useState({})
 
+  // Username validation
+  const isValidUsername = (val) => {
+    if (val.length < 3 || val.length > 30) return false
+    if (!/^[a-zA-Z0-9]/.test(val) || !/[a-zA-Z0-9]$/.test(val)) return false
+    const dotCount = (val.match(/\./g) || []).length
+    const underscoreCount = (val.match(/_/g) || []).length
+    if (dotCount > 1 || underscoreCount > 1) return false
+    if (!/^[a-zA-Z0-9._]+$/.test(val)) return false
+    return true
+  }
+
+  const checkUsernameAvailability = async (uname) => {
+    if (!isValidUsername(uname)) {
+      setUsernameAvailable(null)
+      return
+    }
+    setCheckingUsername(true)
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', uname.toLowerCase())
+        .maybeSingle()
+      if (!error) {
+        // If the found profile is our own, it's fine
+        setUsernameAvailable(!data || data.id === user?.id)
+      }
+    } catch {
+      setUsernameAvailable(null)
+    } finally {
+      setCheckingUsername(false)
+    }
+  }
+
+  const handleUsernameChange = (e) => {
+    const val = e.target.value
+    setUsername(val)
+    setUsernameAvailable(null)
+    const trimmed = val.trim().toLowerCase()
+    if (trimmed.length >= 3 && isValidUsername(trimmed)) {
+      clearTimeout(window._onboardUsernameTimer)
+      window._onboardUsernameTimer = setTimeout(() => checkUsernameAvailability(trimmed), 400)
+    }
+  }
+
   // Populate display name once user becomes available (may be null on initial mount)
   useEffect(() => {
     if (user?.user_metadata?.full_name && !displayName) {
       setDisplayName(user.user_metadata.full_name)
+    }
+    if (user?.user_metadata?.username && !username) {
+      setUsername(user.user_metadata.username)
     }
   }, [user])
 
@@ -113,6 +164,14 @@ export default function Onboarding() {
     if (step === 1) {
       if (!displayName.trim()) {
         newErrors.displayName = 'Display name is required'
+      }
+      const trimmedUsername = username.trim().toLowerCase()
+      if (!trimmedUsername) {
+        newErrors.username = 'Username is required'
+      } else if (!isValidUsername(trimmedUsername)) {
+        newErrors.username = '3-30 chars: letters, numbers, max one dot & one underscore'
+      } else if (usernameAvailable === false) {
+        newErrors.username = 'This username is already taken'
       }
     }
     
@@ -189,6 +248,7 @@ export default function Onboarding() {
 
       const profileData = {
         full_name: displayName,
+        username: username.trim().toLowerCase(),
         bio: bio,
         avatar_url: finalAvatarUrl,
         university: university,
@@ -253,6 +313,7 @@ export default function Onboarding() {
         await supabase.auth.updateUser({
           data: {
             full_name: displayName,
+            username: username.trim().toLowerCase(),
             avatar_url: finalAvatarUrl,
             university: university,
             bio: bio,
@@ -367,6 +428,42 @@ export default function Onboarding() {
                   />
                   {errors.displayName && (
                     <p className="text-[#E57373] text-sm mt-1.5">{errors.displayName}</p>
+                  )}
+                </div>
+
+                {/* Username */}
+                <div>
+                  <label className="block text-cream text-sm font-body mb-2">
+                    Username
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={handleUsernameChange}
+                      className="w-full bg-[#161B2E] text-cream px-4 py-3 pr-10 border border-slate/50 
+                               focus:border-accent focus:outline-none transition-colors duration-200"
+                      style={{ borderRadius: '4px' }}
+                      placeholder="e.g. john_doe"
+                      maxLength={30}
+                    />
+                    {username.trim().length >= 3 && (
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {checkingUsername ? (
+                          <Loader2 size={16} className="text-muted animate-spin" />
+                        ) : usernameAvailable === true ? (
+                          <Check size={16} className="text-accent" />
+                        ) : usernameAvailable === false ? (
+                          <XIcon size={16} className="text-[#E57373]" />
+                        ) : null}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-muted/60 text-xs mt-1">
+                    Letters, numbers, max one dot (.) and one underscore (_)
+                  </p>
+                  {errors.username && (
+                    <p className="text-[#E57373] text-sm mt-1">{errors.username}</p>
                   )}
                 </div>
 

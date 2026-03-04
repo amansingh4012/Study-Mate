@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { 
   User, LogOut, Edit2, X, ChevronDown, Loader2, 
   Camera, FileText, Users, DoorOpen, BookOpen, 
-  Clock, Target, MessageCircle
+  Clock, Target, MessageCircle, Check
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
@@ -83,6 +83,7 @@ export default function Profile() {
   const [saving, setSaving] = useState(false)
   const [editForm, setEditForm] = useState({
     full_name: '',
+    username: '',
     bio: '',
     university: '',
     subjects: [],
@@ -93,6 +94,9 @@ export default function Profile() {
   })
   const [avatarFile, setAvatarFile] = useState(null)
   const [avatarPreview, setAvatarPreview] = useState(null)
+  const [checkingUsername, setCheckingUsername] = useState(false)
+  const [usernameAvailable, setUsernameAvailable] = useState(null)
+  const [usernameError, setUsernameError] = useState('')
 
   const isOwnProfile = !userId || userId === user?.id
   const profileId = userId || user?.id
@@ -218,6 +222,7 @@ export default function Profile() {
       if (isOwnProfile && merged) {
         setEditForm({
           full_name: merged.full_name || '',
+          username: merged.username || '',
           bio: merged.bio || '',
           university: merged.university || '',
           subjects: merged.subjects || [],
@@ -360,6 +365,50 @@ export default function Profile() {
     }
   }
 
+  // Username validation
+  const isValidUsername = (val) => {
+    if (val.length < 3 || val.length > 30) return false
+    if (!/^[a-zA-Z0-9]/.test(val) || !/[a-zA-Z0-9]$/.test(val)) return false
+    const dotCount = (val.match(/\./g) || []).length
+    const underscoreCount = (val.match(/_/g) || []).length
+    if (dotCount > 1 || underscoreCount > 1) return false
+    if (!/^[a-zA-Z0-9._]+$/.test(val)) return false
+    return true
+  }
+
+  const checkUsernameAvailability = async (uname) => {
+    if (!isValidUsername(uname)) {
+      setUsernameAvailable(null)
+      return
+    }
+    setCheckingUsername(true)
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('username', uname.toLowerCase())
+        .maybeSingle()
+      if (!error) {
+        setUsernameAvailable(!data || data.id === user?.id)
+      }
+    } catch {
+      setUsernameAvailable(null)
+    } finally {
+      setCheckingUsername(false)
+    }
+  }
+
+  const handleUsernameChange = (val) => {
+    setEditForm(prev => ({ ...prev, username: val }))
+    setUsernameError('')
+    setUsernameAvailable(null)
+    const trimmed = val.trim().toLowerCase()
+    if (trimmed.length >= 3 && isValidUsername(trimmed)) {
+      clearTimeout(window._profileUsernameTimer)
+      window._profileUsernameTimer = setTimeout(() => checkUsernameAvailability(trimmed), 400)
+    }
+  }
+
   const toggleSubject = (subject) => {
     setEditForm(prev => ({
       ...prev,
@@ -370,6 +419,19 @@ export default function Profile() {
   }
 
   const handleSaveProfile = async () => {
+    // Validate username
+    const trimmedUsername = editForm.username.trim().toLowerCase()
+    if (trimmedUsername) {
+      if (!isValidUsername(trimmedUsername)) {
+        setUsernameError('3-30 chars: letters, numbers, max one dot & one underscore')
+        return
+      }
+      if (usernameAvailable === false) {
+        setUsernameError('This username is already taken')
+        return
+      }
+    }
+
     setSaving(true)
     
     try {
@@ -394,6 +456,7 @@ export default function Profile() {
 
       const profileData = {
           full_name: editForm.full_name,
+          username: editForm.username.trim().toLowerCase(),
           bio: editForm.bio,
           university: editForm.university,
           subjects: editForm.subjects,
@@ -426,6 +489,7 @@ export default function Profile() {
       await supabase.auth.updateUser({
         data: {
           full_name: editForm.full_name,
+          username: editForm.username.trim().toLowerCase(),
           avatar_url: avatarUrl,
           university: editForm.university,
           bio: editForm.bio,
@@ -520,6 +584,9 @@ export default function Profile() {
               <h1 className="font-heading text-2xl text-cream font-bold mb-1">
                 {profile.full_name?.trim() || (profile.email ? profile.email.split('@')[0] : 'User')}
               </h1>
+              {profile.username && (
+                <p className="text-accent text-sm mb-1">@{profile.username}</p>
+              )}
               {profile.university && (
                 <p className="text-muted text-sm mb-3">{profile.university}</p>
               )}
@@ -854,6 +921,40 @@ export default function Profile() {
                            placeholder-muted text-sm focus:outline-none focus:border-accent/50"
                   style={{ borderRadius: '4px' }}
                 />
+              </div>
+
+              {/* Username */}
+              <div>
+                <label className="block text-cream text-sm mb-2">Username</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={editForm.username}
+                    onChange={(e) => handleUsernameChange(e.target.value)}
+                    placeholder="e.g. john_doe"
+                    maxLength={30}
+                    className="w-full px-3 py-2 pr-9 bg-transparent border border-slate/50 text-cream 
+                             placeholder-muted text-sm focus:outline-none focus:border-accent/50"
+                    style={{ borderRadius: '4px' }}
+                  />
+                  {editForm.username.trim().length >= 3 && (
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                      {checkingUsername ? (
+                        <Loader2 size={14} className="text-muted animate-spin" />
+                      ) : usernameAvailable === true ? (
+                        <Check size={14} className="text-accent" />
+                      ) : usernameAvailable === false ? (
+                        <X size={14} className="text-[#E57373]" />
+                      ) : null}
+                    </span>
+                  )}
+                </div>
+                <p className="text-muted/60 text-xs mt-1">
+                  Letters, numbers, max one dot (.) and one underscore (_)
+                </p>
+                {usernameError && (
+                  <p className="text-[#E57373] text-xs mt-1">{usernameError}</p>
+                )}
               </div>
 
               {/* University */}
