@@ -50,6 +50,7 @@ export default function RoomDetail() {
     stopPublishing,
     isPublishing,
     toggleCamera,
+    flipCamera,
     isCamOn: agCamOn,
     localVideoTrack,
     localAudioTrack,
@@ -764,6 +765,7 @@ export default function RoomDetail() {
                   <VideoControls
                     isCamOn={agCamOn}
                     onToggleCam={toggleCamera}
+                    onFlipCam={flipCamera}
                     onLeave={leaveVideo}
                   />
                 </div>
