@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase'
 import NotificationBell from './NotificationBell'
 import SearchBar from './SearchBar'
 import { CompactStreak } from '../ui/StreakWidget'
+import InstallPrompt from '../ui/InstallPrompt'
 
 const NAV_ITEMS = [
   { path: '/home', label: 'Home', icon: House },
@@ -248,6 +249,9 @@ export default function MainLayout() {
           </NavLink>
         </div>
       </header>
+
+      {/* PWA Install Prompt */}
+      <InstallPrompt />
 
       {/* Mobile Bottom Navigation */}
       <nav 
