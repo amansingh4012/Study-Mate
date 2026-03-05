@@ -11,10 +11,11 @@ export function ProtectedRoute({ children }) {
   useEffect(() => {
     if (!user) { setChecking(false); return }
     supabase.from('profiles').select('is_banned').eq('id', user.id).single()
-      .then(({ data }) => {
-        if (data?.is_banned) setBanned(true)
+      .then(({ data, error }) => {
+        if (!error && data?.is_banned) setBanned(true)
         setChecking(false)
       })
+      .catch(() => setChecking(false))
   }, [user?.id])
 
   if (loading || checking) {
