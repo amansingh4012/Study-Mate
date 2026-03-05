@@ -59,8 +59,6 @@ export function AdminRoute({ children }) {
         .eq('id', user.id)
         .single()
 
-      console.log('Admin check:', { data, error, userId: user.id })
-
       if (data?.is_admin) {
         setIsAdmin(true)
       }

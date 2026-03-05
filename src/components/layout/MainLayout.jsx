@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { House, Compass, Users, Grid2X2, Radio, MessageSquare, User, LogOut, Menu } from 'lucide-react'
+import { House, Compass, Users, Grid2X2, Radio, MessageSquare, User, LogOut, Menu, Shield } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import NotificationBell from './NotificationBell'
@@ -26,6 +26,14 @@ export default function MainLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const [unreadCount, setUnreadCount] = useState(0)
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  // Check if user is admin
+  useEffect(() => {
+    if (!user) return
+    supabase.from('profiles').select('is_admin').eq('id', user.id).single()
+      .then(({ data }) => { if (data?.is_admin) setIsAdmin(true) })
+  }, [user?.id])
 
   // Auto-hide sidebar on session room pages so video grid gets max space
   const isSessionRoom = /^\/sessions\/[^/]+$/.test(location.pathname)
@@ -178,6 +186,26 @@ export default function MainLayout() {
             ))}
           </ul>
         </nav>
+
+        {/* Admin Link */}
+        {isAdmin && (
+          <div className="px-3 mt-2">
+            <NavLink
+              to="/admin"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-4 py-3 transition-all duration-200 relative
+                ${isActive
+                  ? 'text-cream bg-white/[0.04]'
+                  : 'text-muted hover:text-cream hover:bg-white/[0.02]'
+                }`
+              }
+              style={{ borderRadius: '6px' }}
+            >
+              <Shield size={20} className="text-accent" />
+              <span className="font-body text-sm">Admin Panel</span>
+            </NavLink>
+          </div>
+        )}
 
         {/* Compact Streak */}
         {user && <CompactStreak userId={user.id} />}
