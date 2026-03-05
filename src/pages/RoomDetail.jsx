@@ -746,11 +746,11 @@ export default function RoomDetail() {
       {/* Main content — Video + tabbed panel */}
       <div className="flex flex-1 min-h-0">
         {/* Center — Video Grid (takes remaining space) */}
-        <div className="flex-1 flex flex-col min-w-0"
+        <div className="flex-1 flex flex-col min-w-0 relative"
              style={{ backgroundColor: '#0A0F1E' }}>
           {agoraJoined && (isPublishing || remoteUsers.length > 0) ? (
             <>
-              <div className="flex-1 p-3 min-h-0">
+              <div className="flex-1 min-h-0">
                 <VideoGrid
                   localVideoTrack={isPublishing ? localVideoTrack : null}
                   localAudioTrack={isPublishing ? localAudioTrack : null}
@@ -762,8 +762,9 @@ export default function RoomDetail() {
                   onPin={setPinnedUid}
                 />
               </div>
-              {isPublishing && !showPanel && (
-                <div className="flex justify-center py-3 flex-shrink-0 border-t border-slate/10">
+              {isPublishing && (
+                <div className="absolute bottom-0 left-0 right-0 flex justify-center py-3 z-10"
+                     style={{ background: 'linear-gradient(transparent, rgba(10,15,30,0.85))' }}>
                   <VideoControls
                     isCamOn={agCamOn}
                     onToggleCam={toggleCamera}

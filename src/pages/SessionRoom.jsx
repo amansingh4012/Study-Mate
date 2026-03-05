@@ -438,9 +438,9 @@ export default function SessionRoom() {
       {/* Main content */}
       <div className="flex flex-1 min-h-0">
         {/* Video area */}
-        <main className="flex-1 flex flex-col min-w-0">
+        <main className="flex-1 flex flex-col min-w-0 relative">
           {/* Video / Placeholder */}
-          <div className="flex-1 p-4">
+          <div className="flex-1 min-h-0">
             {agoraJoined && (remoteUsers.some(u => u.hasVideo) || (isHost && isCamOn) || (viewerInVideo && isCamOn)) ? (
               /* Agora video grid — show local tile only if host or viewer with cam on */
               <div className="h-full">
@@ -507,12 +507,11 @@ export default function SessionRoom() {
             )}
           </div>
 
-          {/* Bottom controls */}
+          {/* Bottom controls — overlaid on video */}
           <div 
-            className="flex items-center justify-center gap-4 p-4 flex-shrink-0"
+            className="absolute bottom-0 left-0 right-0 flex items-center justify-center gap-4 p-3 z-10"
             style={{ 
-              backgroundColor: '#131929',
-              borderTop: '1px solid rgba(255,255,255,0.06)'
+              background: 'linear-gradient(transparent, rgba(10,15,30,0.85))'
             }}
           >
             {isHost ? (
