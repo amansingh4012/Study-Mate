@@ -134,6 +134,7 @@ CREATE TABLE IF NOT EXISTS rooms (
   is_active BOOLEAN DEFAULT TRUE,
   icon TEXT,
   color TEXT,
+  pinned_message_id UUID,
   created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -317,7 +318,23 @@ CREATE TABLE IF NOT EXISTS daily_activity (
 CREATE INDEX IF NOT EXISTS idx_daily_activity_user ON daily_activity(user_id);
 
 -- =============================================
--- 15. NOTIFICATIONS TABLE
+-- 16. ROOM RESOURCES TABLE
+-- =============================================
+CREATE TABLE IF NOT EXISTS room_resources (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  room_id UUID REFERENCES rooms(id) ON DELETE CASCADE NOT NULL,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
+  title TEXT NOT NULL,
+  url TEXT NOT NULL,
+  description TEXT,
+  resource_type TEXT DEFAULT 'link' CHECK (resource_type IN ('link', 'document', 'video', 'other')),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_room_resources_room ON room_resources(room_id);
+
+-- =============================================
+-- 17. NOTIFICATIONS TABLE
 -- =============================================
 CREATE TABLE IF NOT EXISTS notifications (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -356,6 +373,7 @@ ALTER TABLE bookmarks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE follows ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_activity ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE room_resources ENABLE ROW LEVEL SECURITY;
 
 -- =============================================
 -- RLS POLICIES: PROFILES
@@ -731,6 +749,44 @@ CREATE POLICY "Users can create bookmarks"
 CREATE POLICY "Users can delete bookmarks"
   ON bookmarks FOR DELETE
   USING (auth.uid() = user_id);
+
+-- =============================================
+-- RLS POLICIES: ROOM RESOURCES
+-- =============================================
+-- Room resources visible to members
+CREATE POLICY "Room resources visible to members"
+  ON room_resources FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM room_members
+      WHERE room_members.room_id = room_resources.room_id
+      AND room_members.user_id = auth.uid()
+    )
+  );
+
+-- Members can add resources
+CREATE POLICY "Members can add room resources"
+  ON room_resources FOR INSERT
+  WITH CHECK (
+    auth.uid() = user_id
+    AND EXISTS (
+      SELECT 1 FROM room_members
+      WHERE room_members.room_id = room_resources.room_id
+      AND room_members.user_id = auth.uid()
+    )
+  );
+
+-- Resource owner or room creator can delete
+CREATE POLICY "Resource owner can delete"
+  ON room_resources FOR DELETE
+  USING (
+    auth.uid() = user_id
+    OR EXISTS (
+      SELECT 1 FROM rooms
+      WHERE rooms.id = room_resources.room_id
+      AND rooms.created_by = auth.uid()
+    )
+  );
 
 -- =============================================
 -- RLS POLICIES: NOTIFICATIONS

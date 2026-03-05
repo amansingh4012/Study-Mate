@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { 
   ArrowLeft, Users, Crown, Pin, PinOff, Send, 
-  LogOut, Loader2, Radio, ChevronUp, Video, MessageCircle, X 
+  LogOut, Loader2, Radio, ChevronUp, Video, MessageCircle, X,
+  BookOpen, Plus, ExternalLink, FileText, Trash2, LinkIcon, VideoIcon
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
@@ -28,10 +29,15 @@ export default function RoomDetail() {
   const [newMessage, setNewMessage] = useState('')
   const [sending, setSending] = useState(false)
   const [typingUsers, setTypingUsers] = useState([])
-  const [showMembersSidebar, setShowMembersSidebar] = useState(false)
-  const [showChat, setShowChat] = useState(false)
+  const [showPanel, setShowPanel] = useState(true)
+  const [activeTab, setActiveTab] = useState('chat')
   const [hasOlderMessages, setHasOlderMessages] = useState(true)
   const [loadingOlder, setLoadingOlder] = useState(false)
+  const [resources, setResources] = useState([])
+  const [showAddResource, setShowAddResource] = useState(false)
+  const [resourceForm, setResourceForm] = useState({ title: '', url: '', description: '', resource_type: 'link' })
+  const [addingResource, setAddingResource] = useState(false)
+  const [pinnedMessage, setPinnedMessage] = useState(null)
   
   const messagesEndRef = useRef(null)
   const messagesContainerRef = useRef(null)
@@ -97,6 +103,7 @@ export default function RoomDetail() {
     fetchMembers()
     fetchMessages()
     fetchPins()
+    fetchResources()
     joinRoomPresence()
 
     return () => {
@@ -174,6 +181,16 @@ export default function RoomDetail() {
 
       if (error) throw error
       setRoom(data)
+      
+      // Load pinned message if exists
+      if (data?.pinned_message_id) {
+        const { data: pinMsg } = await supabase
+          .from('room_messages')
+          .select('*, author:profiles!room_messages_user_id_fkey(full_name)')
+          .eq('id', data.pinned_message_id)
+          .single()
+        if (pinMsg) setPinnedMessage(pinMsg)
+      }
     } catch (error) {
       console.error('Error fetching room:', error)
       navigate('/rooms')
@@ -273,6 +290,81 @@ export default function RoomDetail() {
     } catch (err) {
       // room_pins table may not exist yet — ignore
       console.warn('room_pins not available:', err.message)
+    }
+  }
+
+  // Fetch resources for this room
+  const fetchResources = async () => {
+    try {
+      const { data } = await supabase
+        .from('room_resources')
+        .select('*, author:profiles!user_id(full_name, avatar_url)')
+        .eq('room_id', roomId)
+        .order('created_at', { ascending: false })
+
+      if (data) setResources(data)
+    } catch (err) {
+      console.warn('room_resources not available:', err.message)
+    }
+  }
+
+  // Add a resource
+  const addResource = async (e) => {
+    e.preventDefault()
+    if (!resourceForm.title.trim() || !resourceForm.url.trim()) return
+    setAddingResource(true)
+    try {
+      const { error } = await supabase.from('room_resources').insert({
+        room_id: roomId,
+        user_id: user.id,
+        title: resourceForm.title.trim(),
+        url: resourceForm.url.trim(),
+        description: resourceForm.description.trim() || null,
+        resource_type: resourceForm.resource_type
+      })
+      if (!error) {
+        setResourceForm({ title: '', url: '', description: '', resource_type: 'link' })
+        setShowAddResource(false)
+        fetchResources()
+        logActivity(user.id, 'room_resource')
+      }
+    } catch (err) {
+      console.error('Error adding resource:', err)
+    } finally {
+      setAddingResource(false)
+    }
+  }
+
+  // Delete a resource
+  const deleteResource = async (resourceId) => {
+    try {
+      await supabase.from('room_resources').delete().eq('id', resourceId)
+      setResources(prev => prev.filter(r => r.id !== resourceId))
+    } catch (err) {
+      console.error('Error deleting resource:', err)
+    }
+  }
+
+  // Pin a message (room creator only)
+  const pinMessage = async (messageId) => {
+    try {
+      await supabase.from('rooms').update({ pinned_message_id: messageId }).eq('id', roomId)
+      const msg = messages.find(m => m.id === messageId)
+      setPinnedMessage(msg || null)
+      setRoom(prev => ({ ...prev, pinned_message_id: messageId }))
+    } catch (err) {
+      console.error('Error pinning message:', err)
+    }
+  }
+
+  // Unpin message
+  const unpinMessage = async () => {
+    try {
+      await supabase.from('rooms').update({ pinned_message_id: null }).eq('id', roomId)
+      setPinnedMessage(null)
+      setRoom(prev => ({ ...prev, pinned_message_id: null }))
+    } catch (err) {
+      console.error('Error unpinning message:', err)
     }
   }
 
@@ -632,21 +724,12 @@ export default function RoomDetail() {
           )}
 
           <button
-            onClick={() => setShowMembersSidebar(!showMembersSidebar)}
+            onClick={() => setShowPanel(!showPanel)}
             className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors text-sm rounded
-                       ${showMembersSidebar ? 'bg-accent/20 text-accent' : 'text-muted hover:text-cream'}`}
-          >
-            <Users size={16} />
-            <span className="hidden sm:inline">{members.length}</span>
-          </button>
-
-          <button
-            onClick={() => setShowChat(!showChat)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 transition-colors text-sm rounded
-                       ${showChat ? 'bg-accent/20 text-accent' : 'text-muted hover:text-cream'}`}
+                       ${showPanel ? 'bg-accent/20 text-accent' : 'text-muted hover:text-cream'}`}
           >
             <MessageCircle size={16} />
-            <span className="hidden sm:inline">Chat</span>
+            <span className="hidden sm:inline">Panel</span>
           </button>
 
           <button
@@ -660,93 +743,8 @@ export default function RoomDetail() {
         </div>
       </div>
 
-      {/* Main content — Video + inline panels */}
+      {/* Main content — Video + tabbed panel */}
       <div className="flex flex-1 min-h-0">
-        {/* Members sidebar — inline toggle */}
-        {showMembersSidebar && (
-        <aside 
-          className="w-[240px] flex-shrink-0 border-r border-slate/10 overflow-y-auto"
-          style={{ backgroundColor: '#131929' }}
-        >
-          <div className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-heading text-sm text-cream font-semibold">
-                Members ({members.length})
-              </h3>
-              <button
-                onClick={() => setShowMembersSidebar(false)}
-                className="p-1 text-muted hover:text-cream"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            
-            <div className="space-y-1">
-              {sortedMembers.map((member) => {
-                const isOnline = member.last_seen && 
-                  new Date(member.last_seen) > new Date(Date.now() - 24 * 60 * 60 * 1000)
-                const isPinned = pinnedUserIds.includes(member.id)
-                const isCreator = member.id === room.creator?.id
-
-                return (
-                  <div
-                    key={member.id}
-                    className={`flex items-center gap-2 p-2 group transition-colors
-                               ${isPinned ? 'bg-accent/5' : 'hover:bg-slate/20'}`}
-                    style={{ borderRadius: '4px' }}
-                  >
-                    <div className="relative flex-shrink-0">
-                      <div className="w-8 h-8 rounded-full bg-slate overflow-hidden">
-                        {member.avatar_url ? (
-                          <img 
-                            src={member.avatar_url} 
-                            alt={member.full_name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-muted text-xs">
-                            {member.full_name?.charAt(0) || '?'}
-                          </div>
-                        )}
-                      </div>
-                      <div 
-                        className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-navy
-                                   ${isOnline ? 'bg-accent' : 'bg-slate'}`}
-                      />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1">
-                        <span className="text-cream text-sm truncate">
-                          {member.full_name}
-                        </span>
-                        {isCreator && (
-                          <Crown size={12} className="text-yellow-500 flex-shrink-0" />
-                        )}
-                        {isPinned && (
-                          <Pin size={10} className="text-accent flex-shrink-0" />
-                        )}
-                      </div>
-                    </div>
-
-                    {member.id !== user.id && (
-                      <button
-                        onClick={() => togglePin(member.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-muted 
-                                 hover:text-cream transition-all"
-                        title={isPinned ? 'Unpin' : 'Pin'}
-                      >
-                        {isPinned ? <PinOff size={14} /> : <Pin size={14} />}
-                      </button>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </aside>
-        )}
-
         {/* Center — Video Grid (takes remaining space) */}
         <div className="flex-1 flex flex-col min-w-0"
              style={{ backgroundColor: '#0A0F1E' }}>
@@ -764,7 +762,7 @@ export default function RoomDetail() {
                   onPin={setPinnedUid}
                 />
               </div>
-              {isPublishing && !showChat && (
+              {isPublishing && !showPanel && (
                 <div className="flex justify-center py-3 flex-shrink-0 border-t border-slate/10">
                   <VideoControls
                     isCamOn={agCamOn}
@@ -784,185 +782,448 @@ export default function RoomDetail() {
           )}
         </div>
 
-        {/* Right — Chat panel — inline toggle */}
-        {showChat && (
-        <div className="w-[340px] flex-shrink-0 flex flex-col border-l border-slate/10"
+        {/* Right — Tabbed panel */}
+        {showPanel && (
+        <div className="w-[360px] flex-shrink-0 flex flex-col border-l border-slate/10"
              style={{ backgroundColor: '#131929' }}>
-          {/* Chat header */}
-          <div className="flex items-center justify-between p-3 border-b border-slate/10 flex-shrink-0">
-            <h3 className="font-heading text-sm text-cream font-semibold">Chat</h3>
+          {/* Tab headers */}
+          <div className="flex border-b border-slate/10 flex-shrink-0">
+            {[
+              { key: 'chat', label: 'Chat', icon: MessageCircle },
+              { key: 'resources', label: 'Resources', icon: BookOpen },
+              { key: 'members', label: `Members (${members.length})`, icon: Users },
+            ].map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-2 py-2.5 text-xs font-medium transition-colors
+                           ${activeTab === tab.key 
+                             ? 'text-accent border-b-2 border-accent' 
+                             : 'text-muted hover:text-cream'}`}
+              >
+                <tab.icon size={14} />
+                {tab.label}
+              </button>
+            ))}
             <button
-              onClick={() => setShowChat(false)}
-              className="p-1 text-muted hover:text-cream"
+              onClick={() => setShowPanel(false)}
+              className="px-2 py-2.5 text-muted hover:text-cream transition-colors"
             >
-              <X size={16} />
+              <X size={14} />
             </button>
           </div>
-          {/* Messages */}
-          <div 
-            ref={messagesContainerRef}
-            className="flex-1 overflow-y-auto p-4"
-          >
-            {/* Load older messages button */}
-            {hasOlderMessages && messages.length > 0 && (
-              <div className="flex justify-center mb-4">
-                <button
-                  onClick={loadOlderMessages}
-                  disabled={loadingOlder}
-                  className="flex items-center gap-2 px-4 py-2 text-sm text-muted 
-                           hover:text-cream transition-colors disabled:opacity-50"
+
+          {/* ===== CHAT TAB ===== */}
+          {activeTab === 'chat' && (
+            <div className="flex-1 flex flex-col min-h-0">
+              {/* Pinned message bar */}
+              {pinnedMessage && (
+                <div 
+                  className="flex items-center gap-2 px-3 py-2 border-b border-slate/10 flex-shrink-0"
+                  style={{ backgroundColor: 'rgba(168,255,62,0.05)' }}
                 >
-                  {loadingOlder ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <ChevronUp size={14} />
+                  <Pin size={12} className="text-accent flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-accent text-[10px] font-medium">Pinned</p>
+                    <p className="text-cream text-xs truncate">{pinnedMessage.content}</p>
+                  </div>
+                  {room.created_by === user.id && (
+                    <button onClick={unpinMessage} className="p-1 text-muted hover:text-cream flex-shrink-0">
+                      <X size={12} />
+                    </button>
                   )}
-                  Load older messages
-                </button>
-              </div>
-            )}
+                </div>
+              )}
 
-            {messages.length === 0 ? (
-              <div className="text-center py-8">
-                <Radio size={32} className="text-muted mx-auto mb-3" />
-                <p className="text-muted">No messages yet.</p>
-                <p className="text-muted text-sm">Start the conversation!</p>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {messages.map((message, index) => {
-                  const isOwn = message.user_id === user.id
-                  const prevMessage = index > 0 ? messages[index - 1] : null
-                  const dateSeparator = getDateSeparator(message.created_at, prevMessage?.created_at)
-                  const showAvatar = shouldShowAvatar(message, index)
-                  const lastInGroup = isLastInGroup(message, index)
-                  
-                  return (
-                    <div key={message.id}>
-                      {/* Date separator */}
-                      {dateSeparator && (
-                        <div className="flex items-center justify-center my-4">
-                          <span className="px-3 py-1 text-xs text-muted bg-slate/30 rounded-full">
-                            {dateSeparator}
-                          </span>
-                        </div>
+              {/* Messages */}
+              <div 
+                ref={messagesContainerRef}
+                className="flex-1 overflow-y-auto p-4"
+              >
+                {hasOlderMessages && messages.length > 0 && (
+                  <div className="flex justify-center mb-4">
+                    <button
+                      onClick={loadOlderMessages}
+                      disabled={loadingOlder}
+                      className="flex items-center gap-2 px-4 py-2 text-sm text-muted 
+                               hover:text-cream transition-colors disabled:opacity-50"
+                    >
+                      {loadingOlder ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <ChevronUp size={14} />
                       )}
+                      Load older messages
+                    </button>
+                  </div>
+                )}
 
-                      {/* Message */}
-                      <div
-                        className={`flex ${isOwn ? 'justify-end' : 'justify-start'} 
-                                   ${lastInGroup ? 'mb-3' : 'mb-0.5'}`}
-                      >
-                        <div className={`flex gap-2 max-w-[80%] ${isOwn ? 'flex-row-reverse' : ''}`}>
-                          {/* Avatar */}
-                          {!isOwn && (
-                            <div className={`w-8 h-8 flex-shrink-0 ${showAvatar ? 'visible' : 'invisible'}`}>
-                              {showAvatar && (
-                                <div className="w-8 h-8 rounded-full bg-slate overflow-hidden">
-                                  {message.author?.avatar_url ? (
-                                    <img 
-                                      src={message.author.avatar_url} 
-                                      alt={message.author.full_name}
-                                      className="w-full h-full object-cover"
-                                    />
-                                  ) : (
-                                    <div className="w-full h-full flex items-center justify-center text-muted text-xs">
-                                      {message.author?.full_name?.charAt(0) || '?'}
+                {messages.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Radio size={32} className="text-muted mx-auto mb-3" />
+                    <p className="text-muted">No messages yet.</p>
+                    <p className="text-muted text-sm">Start the conversation!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {messages.map((message, index) => {
+                      const isOwn = message.user_id === user.id
+                      const prevMessage = index > 0 ? messages[index - 1] : null
+                      const dateSeparator = getDateSeparator(message.created_at, prevMessage?.created_at)
+                      const showAvatar = shouldShowAvatar(message, index)
+                      const lastInGroup = isLastInGroup(message, index)
+                      const isRoomCreator = room.created_by === user.id
+                      
+                      return (
+                        <div key={message.id}>
+                          {dateSeparator && (
+                            <div className="flex items-center justify-center my-4">
+                              <span className="px-3 py-1 text-xs text-muted bg-slate/30 rounded-full">
+                                {dateSeparator}
+                              </span>
+                            </div>
+                          )}
+
+                          <div
+                            className={`flex ${isOwn ? 'justify-end' : 'justify-start'} 
+                                       ${lastInGroup ? 'mb-3' : 'mb-0.5'}`}
+                          >
+                            <div className={`flex gap-2 max-w-[80%] ${isOwn ? 'flex-row-reverse' : ''}`}>
+                              {!isOwn && (
+                                <div className={`w-8 h-8 flex-shrink-0 ${showAvatar ? 'visible' : 'invisible'}`}>
+                                  {showAvatar && (
+                                    <div className="w-8 h-8 rounded-full bg-slate overflow-hidden">
+                                      {message.author?.avatar_url ? (
+                                        <img 
+                                          src={message.author.avatar_url} 
+                                          alt={message.author.full_name}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-muted text-xs">
+                                          {message.author?.full_name?.charAt(0) || '?'}
+                                        </div>
+                                      )}
                                     </div>
                                   )}
                                 </div>
                               )}
-                            </div>
-                          )}
-                          
-                          <div className="min-w-0">
-                            {/* Author name - only on first message of group */}
-                            {!isOwn && showAvatar && (
-                              <p className="text-muted text-xs mb-1">
-                                {message.author?.full_name}
-                              </p>
-                            )}
-                            
-                            {/* Message bubble */}
-                            <div 
-                              className={`group relative px-3 py-2 ${
-                                isOwn 
-                                  ? 'bg-accent text-navy' 
-                                  : 'bg-slate/30 text-cream'
-                              } ${message._isOptimistic ? 'opacity-70' : ''}`}
-                              style={{ borderRadius: '8px' }}
-                            >
-                              <p className="text-sm whitespace-pre-wrap break-words">
-                                {message.content}
-                              </p>
                               
-                              {/* Timestamp tooltip on hover */}
-                              <span 
-                                className={`absolute -bottom-5 text-[10px] text-muted opacity-0 
-                                           group-hover:opacity-100 transition-opacity whitespace-nowrap z-10
-                                           ${isOwn ? 'right-0' : 'left-0'}`}
-                              >
-                                {formatFullDate(message.created_at)}
-                              </span>
+                              <div className="min-w-0">
+                                {!isOwn && showAvatar && (
+                                  <p className="text-muted text-xs mb-1">
+                                    {message.author?.full_name}
+                                  </p>
+                                )}
+                                
+                                <div 
+                                  className={`group relative px-3 py-2 ${
+                                    isOwn 
+                                      ? 'bg-accent text-navy' 
+                                      : 'bg-slate/30 text-cream'
+                                  } ${message._isOptimistic ? 'opacity-70' : ''}`}
+                                  style={{ borderRadius: '8px' }}
+                                >
+                                  <p className="text-sm whitespace-pre-wrap break-words">
+                                    {message.content}
+                                  </p>
+                                  
+                                  <span 
+                                    className={`absolute -bottom-5 text-[10px] text-muted opacity-0 
+                                               group-hover:opacity-100 transition-opacity whitespace-nowrap z-10
+                                               ${isOwn ? 'right-0' : 'left-0'}`}
+                                  >
+                                    {formatFullDate(message.created_at)}
+                                  </span>
+
+                                  {/* Pin button for room creator */}
+                                  {isRoomCreator && !message._isOptimistic && room.pinned_message_id !== message.id && (
+                                    <button
+                                      onClick={() => pinMessage(message.id)}
+                                      className={`absolute -top-3 ${isOwn ? 'left-0' : 'right-0'} 
+                                                 opacity-0 group-hover:opacity-100 p-1 bg-navy/90 
+                                                 rounded text-muted hover:text-accent transition-all`}
+                                      title="Pin message"
+                                    >
+                                      <Pin size={10} />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           </div>
                         </div>
+                      )
+                    })}
+                  </div>
+                )}
+                
+                <div ref={messagesEndRef} />
+              </div>
+
+              {/* Typing indicator */}
+              {typingUsers.length > 0 && (
+                <div className="px-4 pb-2">
+                  <p className="text-muted text-xs">
+                    {typingUsers.length === 1 
+                      ? `${typingUsers[0]} is typing...`
+                      : `${typingUsers.slice(0, 2).join(', ')}${typingUsers.length > 2 ? ` and ${typingUsers.length - 2} more` : ''} are typing...`
+                    }
+                  </p>
+                </div>
+              )}
+
+              {/* Message input */}
+              <form 
+                onSubmit={sendMessage}
+                className="p-3 border-t border-slate/10 flex-shrink-0"
+              >
+                <div className="flex gap-2 items-end">
+                  <textarea
+                    ref={textareaRef}
+                    value={newMessage}
+                    onChange={handleTextareaChange}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Type a message..."
+                    rows={1}
+                    className="flex-1 px-4 py-2.5 bg-transparent border border-slate/50 text-cream 
+                             placeholder-muted text-sm focus:outline-none focus:border-accent/50
+                             resize-none overflow-hidden"
+                    style={{ borderRadius: '4px', maxHeight: '120px' }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!newMessage.trim() || sending}
+                    className="px-4 py-2.5 bg-accent text-navy hover:opacity-90 
+                             transition-opacity disabled:opacity-50 disabled:cursor-not-allowed
+                             flex-shrink-0"
+                    style={{ borderRadius: '4px' }}
+                  >
+                    {sending ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <Send size={18} />
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* ===== RESOURCES TAB ===== */}
+          {activeTab === 'resources' && (
+            <div className="flex-1 flex flex-col min-h-0">
+              {/* Add resource button */}
+              <div className="p-3 border-b border-slate/10 flex-shrink-0">
+                <button
+                  onClick={() => setShowAddResource(!showAddResource)}
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-accent/10 
+                           text-accent hover:bg-accent/20 transition-colors text-sm rounded"
+                >
+                  <Plus size={14} />
+                  Add Resource
+                </button>
+              </div>
+
+              {/* Add resource form */}
+              {showAddResource && (
+                <form onSubmit={addResource} className="p-3 border-b border-slate/10 flex-shrink-0 space-y-2">
+                  <input
+                    type="text"
+                    value={resourceForm.title}
+                    onChange={e => setResourceForm(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="Resource title"
+                    className="w-full px-3 py-2 bg-transparent border border-slate/50 text-cream 
+                             placeholder-muted text-sm focus:outline-none focus:border-accent/50 rounded"
+                    required
+                  />
+                  <input
+                    type="url"
+                    value={resourceForm.url}
+                    onChange={e => setResourceForm(prev => ({ ...prev, url: e.target.value }))}
+                    placeholder="https://..."
+                    className="w-full px-3 py-2 bg-transparent border border-slate/50 text-cream 
+                             placeholder-muted text-sm focus:outline-none focus:border-accent/50 rounded"
+                    required
+                  />
+                  <input
+                    type="text"
+                    value={resourceForm.description}
+                    onChange={e => setResourceForm(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Short description (optional)"
+                    className="w-full px-3 py-2 bg-transparent border border-slate/50 text-cream 
+                             placeholder-muted text-sm focus:outline-none focus:border-accent/50 rounded"
+                  />
+                  <div className="flex gap-1">
+                    {['link', 'document', 'video', 'other'].map(t => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setResourceForm(prev => ({ ...prev, resource_type: t }))}
+                        className={`flex-1 px-2 py-1.5 text-xs rounded transition-colors capitalize
+                                   ${resourceForm.resource_type === t 
+                                     ? 'bg-accent/20 text-accent' 
+                                     : 'bg-slate/20 text-muted hover:text-cream'}`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowAddResource(false)}
+                      className="flex-1 px-3 py-2 text-sm text-muted hover:text-cream 
+                               border border-slate/30 rounded transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={addingResource || !resourceForm.title.trim() || !resourceForm.url.trim()}
+                      className="flex-1 px-3 py-2 text-sm bg-accent text-navy rounded 
+                               hover:opacity-90 transition-opacity disabled:opacity-50"
+                    >
+                      {addingResource ? <Loader2 size={14} className="animate-spin mx-auto" /> : 'Add'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {/* Resources list */}
+              <div className="flex-1 overflow-y-auto p-3">
+                {resources.length === 0 ? (
+                  <div className="text-center py-8">
+                    <BookOpen size={32} className="text-muted mx-auto mb-3" />
+                    <p className="text-muted text-sm">No resources shared yet.</p>
+                    <p className="text-slate/40 text-xs mt-1">Share links, docs, and videos with the room.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {resources.map(resource => {
+                      const TypeIcon = resource.resource_type === 'video' ? VideoIcon
+                        : resource.resource_type === 'document' ? FileText
+                        : resource.resource_type === 'link' ? LinkIcon
+                        : ExternalLink
+                      const canDelete = resource.user_id === user.id || room.created_by === user.id
+
+                      return (
+                        <div
+                          key={resource.id}
+                          className="group p-3 hover:bg-slate/10 transition-colors"
+                          style={{ 
+                            backgroundColor: 'rgba(255,255,255,0.02)',
+                            border: '1px solid rgba(255,255,255,0.06)',
+                            borderRadius: '6px'
+                          }}
+                        >
+                          <div className="flex items-start gap-2">
+                            <div className="p-1.5 bg-accent/10 rounded flex-shrink-0 mt-0.5">
+                              <TypeIcon size={14} className="text-accent" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <a
+                                href={resource.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-cream text-sm font-medium hover:text-accent transition-colors line-clamp-1"
+                              >
+                                {resource.title}
+                              </a>
+                              {resource.description && (
+                                <p className="text-muted text-xs mt-0.5 line-clamp-2">{resource.description}</p>
+                              )}
+                              <p className="text-slate/50 text-[10px] mt-1">
+                                {resource.author?.full_name} · {new Date(resource.created_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                            {canDelete && (
+                              <button
+                                onClick={() => deleteResource(resource.id)}
+                                className="opacity-0 group-hover:opacity-100 p-1 text-muted 
+                                         hover:text-red-400 transition-all flex-shrink-0"
+                                title="Delete resource"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ===== MEMBERS TAB ===== */}
+          {activeTab === 'members' && (
+            <div className="flex-1 overflow-y-auto p-4">
+              <div className="space-y-1">
+                {sortedMembers.map((member) => {
+                  const isOnline = member.last_seen && 
+                    new Date(member.last_seen) > new Date(Date.now() - 24 * 60 * 60 * 1000)
+                  const isPinned = pinnedUserIds.includes(member.id)
+                  const isCreator = member.id === room.creator?.id
+
+                  return (
+                    <div
+                      key={member.id}
+                      className={`flex items-center gap-2 p-2 group transition-colors
+                                 ${isPinned ? 'bg-accent/5' : 'hover:bg-slate/20'}`}
+                      style={{ borderRadius: '4px' }}
+                    >
+                      <div className="relative flex-shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-slate overflow-hidden">
+                          {member.avatar_url ? (
+                            <img 
+                              src={member.avatar_url} 
+                              alt={member.full_name}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-muted text-xs">
+                              {member.full_name?.charAt(0) || '?'}
+                            </div>
+                          )}
+                        </div>
+                        <div 
+                          className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-navy
+                                     ${isOnline ? 'bg-accent' : 'bg-slate'}`}
+                        />
                       </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1">
+                          <span className="text-cream text-sm truncate">
+                            {member.full_name}
+                          </span>
+                          {isCreator && (
+                            <Crown size={12} className="text-yellow-500 flex-shrink-0" />
+                          )}
+                          {isPinned && (
+                            <Pin size={10} className="text-accent flex-shrink-0" />
+                          )}
+                        </div>
+                      </div>
+
+                      {member.id !== user.id && (
+                        <button
+                          onClick={() => togglePin(member.id)}
+                          className="opacity-0 group-hover:opacity-100 p-1 text-muted 
+                                   hover:text-cream transition-all"
+                          title={isPinned ? 'Unpin' : 'Pin'}
+                        >
+                          {isPinned ? <PinOff size={14} /> : <Pin size={14} />}
+                        </button>
+                      )}
                     </div>
                   )
                 })}
               </div>
-            )}
-            
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Typing indicator */}
-          {typingUsers.length > 0 && (
-            <div className="px-4 pb-2">
-              <p className="text-muted text-xs">
-                {typingUsers.length === 1 
-                  ? `${typingUsers[0]} is typing...`
-                  : `${typingUsers.slice(0, 2).join(', ')}${typingUsers.length > 2 ? ` and ${typingUsers.length - 2} more` : ''} are typing...`
-                }
-              </p>
             </div>
           )}
-
-          {/* Message input */}
-          <form 
-            onSubmit={sendMessage}
-            className="p-4 border-t border-slate/10 flex-shrink-0"
-          >
-            <div className="flex gap-2 items-end">
-              <textarea
-                ref={textareaRef}
-                value={newMessage}
-                onChange={handleTextareaChange}
-                onKeyDown={handleKeyDown}
-                placeholder="Type a message... (Enter to send, Shift+Enter for new line)"
-                rows={1}
-                className="flex-1 px-4 py-2.5 bg-transparent border border-slate/50 text-cream 
-                         placeholder-muted text-sm focus:outline-none focus:border-accent/50
-                         resize-none overflow-hidden"
-                style={{ borderRadius: '4px', maxHeight: '120px' }}
-              />
-              <button
-                type="submit"
-                disabled={!newMessage.trim() || sending}
-                className="px-4 py-2.5 bg-accent text-navy hover:opacity-90 
-                         transition-opacity disabled:opacity-50 disabled:cursor-not-allowed
-                         flex-shrink-0"
-                style={{ borderRadius: '4px' }}
-              >
-                {sending ? (
-                  <Loader2 size={18} className="animate-spin" />
-                ) : (
-                  <Send size={18} />
-                )}
-              </button>
-            </div>
-          </form>
         </div>
         )}
       </div>
