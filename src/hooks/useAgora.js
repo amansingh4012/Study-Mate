@@ -24,6 +24,7 @@ export default function useAgora() {
   const [isCamOn, setIsCamOn] = useState(false)
   const [isPublishing, setIsPublishing] = useState(false)
   const [joining, setJoining] = useState(false)
+  const [speakingUids, setSpeakingUids] = useState(new Set())
 
   const localAudioTrack = useRef(null)
   const localVideoTrack = useRef(null)
@@ -66,11 +67,23 @@ export default function useAgora() {
     client.on('user-left', handleUserLeft)
     client.on('user-joined', handleUserJoined)
 
+    // Volume indicator for speaking detection
+    client.enableAudioVolumeIndicator()
+    const handleVolumeIndicator = (volumes) => {
+      const speaking = new Set()
+      volumes.forEach(v => {
+        if (v.level > 5) speaking.add(v.uid)
+      })
+      setSpeakingUids(speaking)
+    }
+    client.on('volume-indicator', handleVolumeIndicator)
+
     return () => {
       client.off('user-published', handleUserPublished)
       client.off('user-unpublished', handleUserUnpublished)
       client.off('user-left', handleUserLeft)
       client.off('user-joined', handleUserJoined)
+      client.off('volume-indicator', handleVolumeIndicator)
     }
   }, [])
 
@@ -310,5 +323,6 @@ export default function useAgora() {
     localAudioTrack,
     localVideoTrack,
     remoteUsers,
+    speakingUids,
   }
 }
