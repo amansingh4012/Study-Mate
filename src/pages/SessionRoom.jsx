@@ -49,12 +49,9 @@ export default function SessionRoom() {
     isPublishing,
     toggleCamera,
     flipCamera,
-    toggleMic,
-    isMicOn,
     isCamOn,
     localVideoTrack,
     remoteUsers,
-    speakingUids,
   } = useAgora()
 
   // ─── Supabase Presence for live viewer tracking & name resolution ───
@@ -113,10 +110,6 @@ export default function SessionRoom() {
       } else {
         // Viewers join channel without publishing so they can see the host's video
         agoraJoin(`session-${sessionId}`, uuidToAgoraUid(user.id), { video: false })
-        // Auto-pin the host for broadcast mode
-        if (session.host_id) {
-          setPinnedUid(uuidToAgoraUid(session.host_id))
-        }
       }
     }
   }, [session, isHost])
@@ -450,7 +443,7 @@ export default function SessionRoom() {
           <div className="flex-1 min-h-0">
             {agoraJoined && (remoteUsers.some(u => u.hasVideo) || (isHost && isCamOn) || (viewerInVideo && isCamOn)) ? (
               /* Agora video grid — show local tile only if host or viewer with cam on */
-              <div className="h-full relative">
+              <div className="h-full">
                 <VideoGrid
                   localVideoTrack={localVideoTrack}
                   localName={user?.user_metadata?.full_name || 'You'}
@@ -460,14 +453,7 @@ export default function SessionRoom() {
                   pinnedUid={pinnedUid}
                   onPin={setPinnedUid}
                   showLocal={(isHost || viewerInVideo) && isCamOn}
-                  speakingUids={speakingUids}
-                  localUid={user ? uuidToAgoraUid(user.id) : null}
                 />
-                {/* Viewer count badge */}
-                <div className="absolute top-3 right-3 z-10 flex items-center gap-1.5 px-2.5 py-1 bg-black/60 backdrop-blur-sm rounded-full">
-                  <Users size={12} className="text-muted" />
-                  <span className="text-xs text-cream font-medium">{viewers.length} watching</span>
-                </div>
               </div>
             ) : agoraJoined ? (
               /* Connected but no one has video on */
@@ -533,9 +519,7 @@ export default function SessionRoom() {
                 {agoraJoined && (
                   <VideoControls
                     isCamOn={isCamOn}
-                    isMicOn={isMicOn}
                     onToggleCam={toggleCamera}
-                    onToggleMic={toggleMic}
                     onFlipCam={flipCamera}
                     onLeave={async () => {
                       await agoraLeave()
@@ -556,9 +540,7 @@ export default function SessionRoom() {
                 {viewerInVideo ? (
                   <VideoControls
                     isCamOn={isCamOn}
-                    isMicOn={isMicOn}
                     onToggleCam={toggleCamera}
-                    onToggleMic={toggleMic}
                     onFlipCam={flipCamera}
                     onLeave={leaveVideoAsViewer}
                   />

@@ -58,13 +58,10 @@ export default function RoomDetail() {
     isPublishing,
     toggleCamera,
     flipCamera,
-    toggleMic,
-    isMicOn: agMicOn,
     isCamOn: agCamOn,
     localVideoTrack,
     localAudioTrack,
     remoteUsers,
-    speakingUids,
   } = useAgora()
 
   // Auto-join Agora channel as viewer when entering room (use deterministic UID)
@@ -763,8 +760,6 @@ export default function RoomDetail() {
                   remoteNames={remoteNames}
                   pinnedUid={pinnedUid}
                   onPin={setPinnedUid}
-                  speakingUids={speakingUids}
-                  localUid={user ? uuidToAgoraUid(user.id) : null}
                 />
               </div>
               {isPublishing && (
@@ -772,9 +767,7 @@ export default function RoomDetail() {
                      style={{ background: 'linear-gradient(transparent, rgba(10,15,30,0.85))' }}>
                   <VideoControls
                     isCamOn={agCamOn}
-                    isMicOn={agMicOn}
                     onToggleCam={toggleCamera}
-                    onToggleMic={toggleMic}
                     onFlipCam={flipCamera}
                     onLeave={leaveVideo}
                   />
