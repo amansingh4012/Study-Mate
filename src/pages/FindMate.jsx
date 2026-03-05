@@ -7,6 +7,7 @@ import MateCard from '../components/ui/MateCard'
 import { MateCardSkeleton } from '../components/ui/Skeletons'
 import { FindMateEmpty } from '../components/ui/EmptyState'
 import ErrorBoundary from '../components/layout/ErrorBoundary'
+import { getProfileCompletenessScore } from '../components/ui/ProfileCompletion'
 
 const SUBJECTS = [
   'Mathematics', 'Physics', 'Chemistry', 'Biology', 'Computer Science',
@@ -95,7 +96,6 @@ export default function FindMate() {
         .from('profiles')
         .select('*')
         .neq('id', user.id)
-        .order('created_at', { ascending: false })
         .limit(50)
 
       if (subjectFilter) {
@@ -113,7 +113,14 @@ export default function FindMate() {
       const { data, error } = await query
 
       if (error) throw error
-      setMates(data || [])
+      // Sort by profile completeness (higher first), then by recency
+      const sorted = (data || []).sort((a, b) => {
+        const scoreA = getProfileCompletenessScore(a)
+        const scoreB = getProfileCompletenessScore(b)
+        if (scoreB !== scoreA) return scoreB - scoreA
+        return new Date(b.created_at) - new Date(a.created_at)
+      })
+      setMates(sorted)
     } catch (error) {
       console.error('Error fetching mates:', error)
     } finally {

@@ -13,6 +13,7 @@ import { ProfileSkeleton, PostCardSkeleton, RoomCardSkeleton } from '../componen
 import EmptyState, { ProfilePostsEmpty, RoomsEmpty } from '../components/ui/EmptyState'
 import ErrorBoundary from '../components/layout/ErrorBoundary'
 import StreakWidget from '../components/ui/StreakWidget'
+import ProfileCompletion from '../components/ui/ProfileCompletion'
 
 const SUBJECTS = [
   'Computer Science', 'Web Dev', 'Machine Learning', 'UI/UX Design',
@@ -802,6 +803,13 @@ export default function Profile() {
       {isOwnProfile && (
         <div className="mb-6">
           <StreakWidget userId={profileId} />
+        </div>
+      )}
+
+      {/* Profile Completeness — own profile only */}
+      {isOwnProfile && (
+        <div className="mb-6">
+          <ProfileCompletion userId={profileId} />
         </div>
       )}
 

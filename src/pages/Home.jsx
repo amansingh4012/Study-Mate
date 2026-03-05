@@ -8,6 +8,7 @@ import CreatePost from '../components/ui/CreatePost'
 import { PostCardSkeleton } from '../components/ui/Skeletons'
 import { HomeFeedEmpty } from '../components/ui/EmptyState'
 import ErrorBoundary from '../components/layout/ErrorBoundary'
+import { ProfileCompletionBanner } from '../components/ui/ProfileCompletion'
 
 const POSTS_PER_PAGE = 10
 
@@ -450,6 +451,9 @@ export default function Home() {
 
         {/* Main Feed */}
         <main className="flex-1 min-w-0 space-y-4">
+          {/* Profile Completion Banner */}
+          <ProfileCompletionBanner userId={user?.id} />
+
           {/* Create Post */}
           <CreatePost 
             onPostCreated={handlePostCreated} 
