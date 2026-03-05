@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { logActivity } from '../lib/activity'
 import { SessionRoomSkeleton } from '../components/ui/Skeletons'
 import ErrorBoundary from '../components/layout/ErrorBoundary'
 import useAgora, { uuidToAgoraUid } from '../hooks/useAgora'
@@ -282,6 +283,9 @@ export default function SessionRoom() {
           session_id: sessionId,
           user_id: user.id
         }, { onConflict: 'session_id,user_id' })
+
+      // Log activity for streak
+      logActivity(user.id, 'session')
     } catch (e) {
       // Non-critical — Presence handles live UI
       console.warn('session_viewers insert failed (non-critical):', e)

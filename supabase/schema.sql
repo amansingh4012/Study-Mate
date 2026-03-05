@@ -305,6 +305,18 @@ CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);
 CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id);
 
 -- =============================================
+-- 14b. DAILY ACTIVITY TABLE (streaks)
+-- =============================================
+CREATE TABLE IF NOT EXISTS daily_activity (
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  activity_date DATE NOT NULL,
+  activity_types TEXT[] DEFAULT '{}',
+  PRIMARY KEY (user_id, activity_date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_daily_activity_user ON daily_activity(user_id);
+
+-- =============================================
 -- 15. NOTIFICATIONS TABLE
 -- =============================================
 CREATE TABLE IF NOT EXISTS notifications (
@@ -342,6 +354,7 @@ ALTER TABLE session_viewers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE session_reminders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bookmarks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE follows ENABLE ROW LEVEL SECURITY;
+ALTER TABLE daily_activity ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
 -- =============================================
@@ -439,6 +452,24 @@ CREATE POLICY "Users can follow others"
 CREATE POLICY "Users can unfollow"
   ON follows FOR DELETE
   USING (auth.uid() = follower_id);
+
+-- =============================================
+-- RLS POLICIES: DAILY ACTIVITY
+-- =============================================
+-- Anyone can view activity (for profile streak displays)
+CREATE POLICY "Activity is publicly readable"
+  ON daily_activity FOR SELECT
+  USING (true);
+
+-- Users can insert/update their own activity
+CREATE POLICY "Users can insert own activity"
+  ON daily_activity FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own activity"
+  ON daily_activity FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
 
 -- =============================================
 -- RLS POLICIES: MATE REQUESTS

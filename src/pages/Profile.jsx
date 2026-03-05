@@ -12,6 +12,7 @@ import RoomCard from '../components/ui/RoomCard'
 import { ProfileSkeleton, PostCardSkeleton, RoomCardSkeleton } from '../components/ui/Skeletons'
 import EmptyState, { ProfilePostsEmpty, RoomsEmpty } from '../components/ui/EmptyState'
 import ErrorBoundary from '../components/layout/ErrorBoundary'
+import StreakWidget from '../components/ui/StreakWidget'
 
 const SUBJECTS = [
   'Computer Science', 'Web Dev', 'Machine Learning', 'UI/UX Design',
@@ -796,6 +797,13 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
+      {/* Streak Widget — own profile only */}
+      {isOwnProfile && (
+        <div className="mb-6">
+          <StreakWidget userId={profileId} />
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-2 sm:gap-6 mb-6 border-b border-slate/20">

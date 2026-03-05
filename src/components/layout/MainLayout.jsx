@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../lib/supabase'
 import NotificationBell from './NotificationBell'
 import SearchBar from './SearchBar'
+import { CompactStreak } from '../ui/StreakWidget'
 
 const NAV_ITEMS = [
   { path: '/home', label: 'Home', icon: House },
@@ -176,6 +177,9 @@ export default function MainLayout() {
             ))}
           </ul>
         </nav>
+
+        {/* Compact Streak */}
+        {user && <CompactStreak userId={user.id} />}
 
         {/* User Section */}
         <div 

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { logActivity } from '../lib/activity'
 import { RoomDetailSkeleton } from '../components/ui/Skeletons'
 import ErrorBoundary from '../components/layout/ErrorBoundary'
 import useAgora, { uuidToAgoraUid } from '../hooks/useAgora'
@@ -403,6 +404,9 @@ export default function RoomDetail() {
 
       if (error) throw error
       
+      // Log activity for streak
+      logActivity(user.id, 'room_chat')
+
       // Replace optimistic message with real one
       setMessages(prev => prev.map(msg => 
         msg.id === tempId ? data : msg

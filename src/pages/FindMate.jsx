@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { X, ChevronDown, Loader2, Check, XCircle, Clock } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { logActivity } from '../lib/activity'
 import MateCard from '../components/ui/MateCard'
 import { MateCardSkeleton } from '../components/ui/Skeletons'
 import { FindMateEmpty } from '../components/ui/EmptyState'
@@ -253,6 +254,9 @@ export default function FindMate() {
           user1_id: fromUserId,
           user2_id: user.id
         })
+
+      // Log activity for streak
+      logActivity(user.id, 'connection')
 
       // Create notification for the requester
       const accepterName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Someone'

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Image, X, Loader2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
+import { logActivity } from '../../lib/activity'
 
 const SUBJECTS = [
   'Computer Science', 'Web Dev', 'Machine Learning', 'UI/UX Design',
@@ -95,6 +96,9 @@ export default function CreatePost({ onPostCreated, userSubjects = [] }) {
         .single()
 
       if (postError) throw postError
+
+      // Log activity for streak
+      logActivity(user.id, 'post')
 
       // Reset form
       setContent('')
