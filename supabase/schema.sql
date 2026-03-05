@@ -292,12 +292,25 @@ CREATE TABLE IF NOT EXISTS bookmarks (
 );
 
 -- =============================================
--- 14. NOTIFICATIONS TABLE
+-- 14. FOLLOWS TABLE (one-way, public)
+-- =============================================
+CREATE TABLE IF NOT EXISTS follows (
+  follower_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  following_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  PRIMARY KEY (follower_id, following_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id);
+CREATE INDEX IF NOT EXISTS idx_follows_following ON follows(following_id);
+
+-- =============================================
+-- 15. NOTIFICATIONS TABLE
 -- =============================================
 CREATE TABLE IF NOT EXISTS notifications (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID REFERENCES profiles(id) ON DELETE CASCADE NOT NULL,
-  type TEXT NOT NULL CHECK (type IN ('mate_request', 'mate_accepted', 'room_message', 'post_like', 'session_live')),
+  type TEXT NOT NULL CHECK (type IN ('mate_request', 'mate_accepted', 'room_message', 'post_like', 'session_live', 'new_follower')),
   title TEXT NOT NULL,
   message TEXT,
   link TEXT,
@@ -328,6 +341,7 @@ ALTER TABLE session_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE session_viewers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE session_reminders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bookmarks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE follows ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 
 -- =============================================
@@ -407,6 +421,24 @@ CREATE POLICY "Users can create comments"
 CREATE POLICY "Users can delete own comments"
   ON comments FOR DELETE
   USING (auth.uid() = user_id);
+
+-- =============================================
+-- RLS POLICIES: FOLLOWS
+-- =============================================
+-- Anyone can view follows
+CREATE POLICY "Follows are publicly readable"
+  ON follows FOR SELECT
+  USING (true);
+
+-- Users can follow others
+CREATE POLICY "Users can follow others"
+  ON follows FOR INSERT
+  WITH CHECK (auth.uid() = follower_id);
+
+-- Users can unfollow
+CREATE POLICY "Users can unfollow"
+  ON follows FOR DELETE
+  USING (auth.uid() = follower_id);
 
 -- =============================================
 -- RLS POLICIES: MATE REQUESTS

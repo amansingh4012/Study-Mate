@@ -19,6 +19,7 @@ export default function Home() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMore, setHasMore] = useState(true)
   const [selectedSubject, setSelectedSubject] = useState(null)
+  const [feedTab, setFeedTab] = useState('community') // 'community' | 'following'
   
   const [userProfile, setUserProfile] = useState(null)
   const [activeRooms, setActiveRooms] = useState([])
@@ -150,6 +151,24 @@ export default function Home() {
         query = query.eq('subject', selectedSubject)
       }
 
+      // Following tab: filter to followed users only
+      if (feedTab === 'following') {
+        const { data: followRows } = await supabase
+          .from('follows')
+          .select('following_id')
+          .eq('follower_id', user.id)
+        const followedIds = (followRows || []).map(r => r.following_id)
+        if (followedIds.length === 0) {
+          // No follows — return empty
+          if (reset) setPosts([])
+          setHasMore(false)
+          setLoading(false)
+          setLoadingMore(false)
+          return
+        }
+        query = query.in('author_id', followedIds)
+      }
+
       const { data, error } = await query
 
       if (error) throw error
@@ -202,13 +221,13 @@ export default function Home() {
       setLoading(false)
       setLoadingMore(false)
     }
-  }, [user?.id, selectedSubject])
+  }, [user?.id, selectedSubject, feedTab])
 
-  // Initial fetch and on filter change
+  // Initial fetch and on filter/tab change
   useEffect(() => {
     if (!user) return
     fetchPosts(true)
-  }, [selectedSubject, user?.id])
+  }, [selectedSubject, user?.id, feedTab])
 
   // Real-time subscription
   useEffect(() => {
@@ -437,6 +456,24 @@ export default function Home() {
             userSubjects={userSubjects}
           />
 
+          {/* Feed Tabs */}
+          <div className="flex gap-1 p-1" style={{ backgroundColor: '#131929', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.06)' }}>
+            {['community', 'following'].map(tab => (
+              <button
+                key={tab}
+                onClick={() => setFeedTab(tab)}
+                className={`flex-1 py-2 text-sm font-medium transition-all duration-200
+                  ${feedTab === tab
+                    ? 'bg-accent text-navy'
+                    : 'text-muted hover:text-cream'
+                  }`}
+                style={{ borderRadius: '4px' }}
+              >
+                {tab === 'community' ? 'Community' : 'Following'}
+              </button>
+            ))}
+          </div>
+
           {/* Filter indicator */}
           {selectedSubject && (
             <div className="flex items-center gap-2 text-sm">
@@ -495,6 +532,29 @@ export default function Home() {
                 </div>
               )}
             </>
+          ) : feedTab === 'following' ? (
+            <div
+              className="p-8 text-center"
+              style={{
+                backgroundColor: '#131929',
+                border: '1px solid rgba(255,255,255,0.06)',
+                borderRadius: '6px',
+              }}
+            >
+              <Users size={32} className="mx-auto text-slate mb-3" />
+              <p className="text-cream text-sm font-medium mb-1">
+                You're not following anyone yet.
+              </p>
+              <p className="text-muted text-xs mb-4">
+                Follow people to see their posts here.
+              </p>
+              <Link
+                to="/discover"
+                className="inline-flex items-center gap-1.5 text-accent text-sm hover:underline"
+              >
+                Discover people &rarr;
+              </Link>
+            </div>
           ) : (
             <HomeFeedEmpty />
           )}

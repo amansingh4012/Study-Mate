@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { 
   User, LogOut, Edit2, X, ChevronDown, Loader2, 
   Camera, FileText, Users, DoorOpen, BookOpen, 
-  Clock, Target, MessageCircle, Check
+  Clock, Target, MessageCircle, Check, UserPlus, UserCheck
 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
@@ -70,6 +70,8 @@ export default function Profile() {
   const [postCount, setPostCount] = useState(0)
   const [connectionCount, setConnectionCount] = useState(0)
   const [roomCount, setRoomCount] = useState(0)
+  const [followerCount, setFollowerCount] = useState(0)
+  const [followingCount, setFollowingCount] = useState(0)
   
   // Content
   const [posts, setPosts] = useState([])
@@ -77,6 +79,11 @@ export default function Profile() {
   
   // Connection status
   const [connectionStatus, setConnectionStatus] = useState(null) // null | 'pending' | 'connected'
+  
+  // Follow status
+  const [isFollowing, setIsFollowing] = useState(false)
+  const [followLoading, setFollowLoading] = useState(false)
+  const [followHover, setFollowHover] = useState(false)
   
   // Edit modal
   const [showEditModal, setShowEditModal] = useState(false)
@@ -107,6 +114,7 @@ export default function Profile() {
     fetchStats()
     if (!isOwnProfile) {
       checkConnectionStatus()
+      checkFollowStatus()
     }
   }, [profileId])
 
@@ -264,6 +272,20 @@ export default function Profile() {
     setPostCount(posts || 0)
     setConnectionCount(conns || 0)
     setRoomCount(rooms || 0)
+
+    // Follower / Following counts
+    const { count: followers } = await supabase
+      .from('follows')
+      .select('*', { count: 'exact', head: true })
+      .eq('following_id', profileId)
+
+    const { count: following } = await supabase
+      .from('follows')
+      .select('*', { count: 'exact', head: true })
+      .eq('follower_id', profileId)
+
+    setFollowerCount(followers || 0)
+    setFollowingCount(following || 0)
   }
 
   const fetchPosts = async () => {
@@ -354,6 +376,57 @@ export default function Profile() {
 
     if (req) {
       setConnectionStatus('pending')
+    }
+  }
+
+  const checkFollowStatus = async () => {
+    if (!user) return
+    const { data } = await supabase
+      .from('follows')
+      .select('follower_id')
+      .eq('follower_id', user.id)
+      .eq('following_id', profileId)
+      .maybeSingle()
+    setIsFollowing(!!data)
+  }
+
+  const handleFollowToggle = async () => {
+    if (!user || followLoading) return
+    setFollowLoading(true)
+    const wasFollowing = isFollowing
+
+    // Optimistic update
+    setIsFollowing(!wasFollowing)
+    setFollowerCount(prev => wasFollowing ? prev - 1 : prev + 1)
+
+    try {
+      if (wasFollowing) {
+        await supabase.from('follows').delete().match({
+          follower_id: user.id,
+          following_id: profileId,
+        })
+      } else {
+        await supabase.from('follows').insert({
+          follower_id: user.id,
+          following_id: profileId,
+        })
+        // Send notification
+        const followerName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Someone'
+        await supabase.from('notifications').insert({
+          user_id: profileId,
+          type: 'new_follower',
+          title: `${followerName} started following you`,
+          message: 'Check out their profile',
+          link: `/profile/${user.id}`,
+        })
+      }
+    } catch (err) {
+      // Revert
+      setIsFollowing(wasFollowing)
+      setFollowerCount(prev => wasFollowing ? prev + 1 : prev - 1)
+      console.error('Error toggling follow:', err)
+    } finally {
+      setFollowLoading(false)
     }
   }
 
@@ -621,8 +694,12 @@ export default function Profile() {
                   <span className="text-muted ml-1">Posts</span>
                 </div>
                 <div className="text-center sm:text-left">
-                  <span className="text-cream font-semibold">{connectionCount}</span>
-                  <span className="text-muted ml-1">Connections</span>
+                  <span className="text-cream font-semibold">{followerCount}</span>
+                  <span className="text-muted ml-1">Followers</span>
+                </div>
+                <div className="text-center sm:text-left">
+                  <span className="text-cream font-semibold">{followingCount}</span>
+                  <span className="text-muted ml-1">Following</span>
                 </div>
                 <div className="text-center sm:text-left">
                   <span className="text-cream font-semibold">{roomCount}</span>
@@ -685,6 +762,35 @@ export default function Profile() {
                 >
                   Send Note
                 </Link>
+              )}
+
+              {/* Follow button (other profiles only) */}
+              {!isOwnProfile && (
+                <button
+                  onClick={handleFollowToggle}
+                  onMouseEnter={() => setFollowHover(true)}
+                  onMouseLeave={() => setFollowHover(false)}
+                  disabled={followLoading}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition-all
+                    ${
+                      isFollowing
+                        ? followHover
+                          ? 'bg-transparent border border-red-400/60 text-red-400 hover:bg-red-400/10'
+                          : 'bg-accent text-navy'
+                        : 'bg-transparent border border-cream/30 text-cream hover:border-accent hover:text-accent'
+                    } disabled:opacity-50`}
+                  style={{ borderRadius: '4px' }}
+                >
+                  {isFollowing ? (
+                    followHover ? (
+                      <><X size={16} /> Unfollow</>
+                    ) : (
+                      <><UserCheck size={16} /> Following</>
+                    )
+                  ) : (
+                    <><UserPlus size={16} /> Follow</>
+                  )}
+                </button>
               )}
             </div>
           </div>
