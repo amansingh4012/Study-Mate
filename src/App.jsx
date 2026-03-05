@@ -23,6 +23,7 @@ import MainLayout from './components/layout/MainLayout'
 import AdminLayout from './components/layout/AdminLayout'
 import { ProtectedRoute, AdminRoute } from './components/layout/ProtectedRoute'
 import ErrorBoundary from './components/layout/ErrorBoundary'
+import Landing from './pages/Landing'
 
 // Wrap pages in ErrorBoundary
 const withErrorBoundary = (Component) => (
@@ -35,7 +36,7 @@ function App() {
   return (
     <Routes>
       {/* Public routes */}
-      <Route path="/" element={<Navigate to="/home" replace />} />
+      <Route path="/" element={<Landing />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/login" element={<Login />} />
       <Route path="/onboarding" element={<Onboarding />} />
