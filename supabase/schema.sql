@@ -23,6 +23,8 @@ CREATE TABLE IF NOT EXISTS profiles (
   looking_for TEXT,
   availability TEXT,
   last_seen TIMESTAMPTZ,
+  is_admin BOOLEAN DEFAULT FALSE,
+  is_banned BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -351,6 +353,24 @@ CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications(created_at DESC);
 
 -- =============================================
+-- REPORTS TABLE (admin moderation)
+-- =============================================
+CREATE TABLE IF NOT EXISTS reports (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  type TEXT NOT NULL CHECK (type IN ('post', 'message', 'user', 'room')),
+  content_id UUID,
+  content_text TEXT,
+  reporter_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  reported_user_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  reason TEXT NOT NULL,
+  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'reviewed', 'dismissed')),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status);
+CREATE INDEX IF NOT EXISTS idx_reports_created ON reports(created_at DESC);
+
+-- =============================================
 -- ROW LEVEL SECURITY (RLS)
 -- =============================================
 
@@ -374,6 +394,7 @@ ALTER TABLE follows ENABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_activity ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE room_resources ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reports ENABLE ROW LEVEL SECURITY;
 
 -- =============================================
 -- RLS POLICIES: PROFILES
@@ -806,6 +827,47 @@ CREATE POLICY "Authenticated users can create notifications"
 CREATE POLICY "Users can update own notifications"
   ON notifications FOR UPDATE
   USING (auth.uid() = user_id);
+
+-- =============================================
+-- RLS POLICIES: REPORTS
+-- =============================================
+-- Admins can view all reports
+CREATE POLICY "Admins can view all reports"
+  ON reports FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+      AND profiles.is_admin = true
+    )
+  );
+
+-- Authenticated users can create reports
+CREATE POLICY "Users can create reports"
+  ON reports FOR INSERT
+  WITH CHECK (auth.uid() = reporter_id);
+
+-- Admins can update reports (review/dismiss)
+CREATE POLICY "Admins can update reports"
+  ON reports FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+      AND profiles.is_admin = true
+    )
+  );
+
+-- Admins can delete reports
+CREATE POLICY "Admins can delete reports"
+  ON reports FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE profiles.id = auth.uid()
+      AND profiles.is_admin = true
+    )
+  );
 
 -- Users can delete their own notifications
 CREATE POLICY "Users can delete own notifications"

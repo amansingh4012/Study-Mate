@@ -14,8 +14,14 @@ import Messages from './pages/Messages'
 import Profile from './pages/Profile'
 import Search from './pages/Search'
 import Discover from './pages/Discover'
+import AdminOverview from './pages/admin/AdminOverview'
+import AdminUsers from './pages/admin/AdminUsers'
+import AdminRooms from './pages/admin/AdminRooms'
+import AdminReports from './pages/admin/AdminReports'
+import AdminSessions from './pages/admin/AdminSessions'
 import MainLayout from './components/layout/MainLayout'
-import { ProtectedRoute } from './components/layout/ProtectedRoute'
+import AdminLayout from './components/layout/AdminLayout'
+import { ProtectedRoute, AdminRoute } from './components/layout/ProtectedRoute'
 import ErrorBoundary from './components/layout/ErrorBoundary'
 
 // Wrap pages in ErrorBoundary
@@ -50,6 +56,15 @@ function App() {
         <Route path="/profile/:userId" element={withErrorBoundary(Profile)} />
         <Route path="/search" element={withErrorBoundary(Search)} />
         <Route path="/discover" element={withErrorBoundary(Discover)} />
+      </Route>
+
+      {/* Admin routes */}
+      <Route element={<AdminRoute><AdminLayout /></AdminRoute>}>
+        <Route path="/admin" element={withErrorBoundary(AdminOverview)} />
+        <Route path="/admin/users" element={withErrorBoundary(AdminUsers)} />
+        <Route path="/admin/rooms" element={withErrorBoundary(AdminRooms)} />
+        <Route path="/admin/reports" element={withErrorBoundary(AdminReports)} />
+        <Route path="/admin/sessions" element={withErrorBoundary(AdminSessions)} />
       </Route>
     </Routes>
   )
