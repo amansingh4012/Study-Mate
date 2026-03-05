@@ -44,18 +44,31 @@ export function ProtectedRoute({ children }) {
 }
 
 export function AdminRoute({ children }) {
-  const { user, loading } = useAuth()
+  const { user, session, loading } = useAuth()
   const [isAdmin, setIsAdmin] = useState(false)
   const [checking, setChecking] = useState(true)
 
   useEffect(() => {
+    if (loading) return
     if (!user) { setChecking(false); return }
-    supabase.from('profiles').select('is_admin').eq('id', user.id).single()
-      .then(({ data }) => {
-        setIsAdmin(!!data?.is_admin)
-        setChecking(false)
-      })
-  }, [user?.id])
+
+    async function checkAdmin() {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single()
+
+      console.log('Admin check:', { data, error, userId: user.id })
+
+      if (data?.is_admin) {
+        setIsAdmin(true)
+      }
+      setChecking(false)
+    }
+
+    checkAdmin()
+  }, [user?.id, loading])
 
   if (loading || checking) {
     return (
@@ -65,7 +78,7 @@ export function AdminRoute({ children }) {
     )
   }
 
-  if (!user || !isAdmin) {
+  if (!session || !isAdmin) {
     return <Navigate to="/home" replace />
   }
 
